@@ -26,6 +26,7 @@ async function fixture(t: TestContext) {
     reads: 0,
     failAfterWrite: false,
     slow: false,
+    beforeRead: undefined as (() => Promise<void>) | undefined,
   };
   const client = new IrisClient('http://iris', async (input, init) => {
     const url = new URL(String(input)),
@@ -39,6 +40,7 @@ async function fixture(t: TestContext) {
       return Response.json({ result: {} });
     }
     state.reads++;
+    if (state.beforeRead) await state.beforeRead();
     if (state.slow) await new Promise((r) => setTimeout(r, 25));
     if (path.endsWith('/web-app'))
       return Response.json({
@@ -353,3 +355,52 @@ test('secret masking cannot collapse distinct authenticated run owners', async (
   const own = await first.get('/api/runs/' + run.body.id).expect(200);
   assert.equal(own.body.owner, 'ops_AreaRed1');
 });
+
+for (const firstOperation of ['reconcile', 'inspect'] as const) {
+  test(
+    'target lock excludes concurrent ' + firstOperation + ' and another run operation',
+    async (t) => {
+      const { engine, store, state } = await fixture(t);
+      const other = { owner: 'other-operator', auth: 'Basic other' };
+      const uncertain = await engine.create(actor, 'application-window', '/sample', '/sample');
+      await engine.next(actor, uncertain.id);
+      state.failAfterWrite = true;
+      await engine.next(actor, uncertain.id);
+      state.failAfterWrite = false;
+      const inspecting = await engine.create(other, 'application-window', '/SAMPLE//', '/SAMPLE//');
+      const before = await store.read(actor.owner, engine.instance, uncertain.id);
+      let entered!: () => void;
+      let release!: () => void;
+      const started = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      state.beforeRead = async () => {
+        state.beforeRead = undefined;
+        entered();
+        await gate;
+      };
+      const reconcile = () => engine.reconcile(actor, uncertain.id);
+      const inspect = () => engine.next(other, inspecting.id);
+      const inFlight = firstOperation === 'reconcile' ? reconcile() : inspect();
+      try {
+        await started;
+        const reads = state.reads;
+        await assert.rejects(firstOperation === 'reconcile' ? inspect : reconcile, { status: 409 });
+        assert.equal(state.reads, reads, 'a conflicting operation must not reach IRIS');
+        assert.equal(state.writes, 1);
+        assert.deepEqual(await store.read(actor.owner, engine.instance, uncertain.id), before);
+      } finally {
+        release();
+        await inFlight;
+      }
+      if (firstOperation === 'reconcile') await inspect();
+      else await reconcile();
+      const recovered = await engine.get(actor, uncertain.id);
+      assert.equal(recovered.steps[1].status, 'done');
+      assert.equal(state.writes, 1, 'reconciliation must not replay the write');
+    },
+  );
+}

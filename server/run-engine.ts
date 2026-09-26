@@ -331,27 +331,29 @@ export class RunEngine {
         step = run.steps[nextStep(run)];
       if (!step || step.status !== 'uncertain' || !writeStep(step.kind))
         throw new ApiError(409, 'No uncertain write is awaiting reconciliation.');
-      const observed = await this.state(actor, run),
-        desired = this.desired(run, step);
-      step.evidence = {
-        observed,
-        requested: desired,
-        reconciledAt: new Date().toISOString(),
-        notice: 'Observed current state; this does not prove which actor changed it.',
-      };
-      if (observed === desired) {
-        step.status = 'done';
-        step.finishedAt = new Date().toISOString();
-        delete step.error;
-        if (step.kind.startsWith('restore')) run.needsRestore = false;
-      } else {
-        step.status = 'failed';
-        step.error =
-          'Current state differs from the requested state. No write was retried; review before retrying or restoring.';
-      }
-      this.event(run, 'reconciled', step.title + ': observed ' + observed);
-      await this.store.save(run);
-      return run;
+      return this.targetLocked(run, async () => {
+        const observed = await this.state(actor, run),
+          desired = this.desired(run, step);
+        step.evidence = {
+          observed,
+          requested: desired,
+          reconciledAt: new Date().toISOString(),
+          notice: 'Observed current state; this does not prove which actor changed it.',
+        };
+        if (observed === desired) {
+          step.status = 'done';
+          step.finishedAt = new Date().toISOString();
+          delete step.error;
+          if (step.kind.startsWith('restore')) run.needsRestore = false;
+        } else {
+          step.status = 'failed';
+          step.error =
+            'Current state differs from the requested state. No write was retried; review before retrying or restoring.';
+        }
+        this.event(run, 'reconciled', step.title + ': observed ' + observed);
+        await this.store.save(run);
+        return run;
+      });
     });
   }
   async restore(actor: Actor, id: string, confirmation: string) {
