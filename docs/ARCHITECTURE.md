@@ -35,3 +35,7 @@ The pinned source specification is kept unchanged. Run `npx tsx scripts/build-co
 4. Add the workspace route and document the required IRIS resource.
 
 Keep resource-specific workflows in dedicated components once they exceed simple collection editing. Do not put domain policy into generic table components.
+
+## Product workspace
+
+The application shell is isolated in `src/layout/`. Its navigation and CSS belong to this product. The administrative primitives in `src/components/` retain the shared contract and safety behavior. The main review/operations component remains mounted when switching tools so in-progress inspection is preserved.

@@ -33,6 +33,8 @@ The additional `npm run test:runbooks` suite verifies the full gateway flow: per
 
 ## Browser review
 
+The compact tool rail and all native tool routes were exercised in the browser. A new observation run completed all four steps through the runbook picker and step inspector; selecting a recorded host-capacity step displayed the real response. The API suite also passed application disable/checkpoint/restore and task suspend/early-restore flows. The queue and step inspector were reviewed at 390 px width.
+
 The interface copy and layout were refined in a subsequent review: direct screen titles, compact sign-in forms, fewer repeated labels and smaller operation cards. The updated production interfaces were checked at desktop and mobile widths, including keyboard navigation and theme switching.
 
 An observation report created before a real Compose portal-container replacement was retrieved afterward with its original ID, timestamps, completed steps and event journal intact. The run volume therefore survived the tested replacement, independently of the unit tests that simulate engine restart.

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Activity,
   ArrowUpRight,
+  Plus,
   ClipboardList,
   FileCheck2,
   RefreshCw,
@@ -12,7 +13,7 @@ import {
 } from 'lucide-react';
 import { templates, type Run, type RunSummary, type TemplateId } from '../../shared/runbook';
 import { request } from '../api';
-import { Badge, ErrorBox, Loading, PageHeader } from '../components/ui';
+import { Badge, ErrorBox, Loading, Modal, PageHeader } from '../components/ui';
 import { CreateRun } from '../features/runbooks/CreateRun';
 import { RunDetail } from '../features/runbooks/RunDetail';
 
@@ -24,7 +25,8 @@ export function Runbooks() {
     [error, setError] = useState('');
   const [template, setTemplate] = useState<TemplateId>(),
     [search, setSearch] = useState(''),
-    [filter, setFilter] = useState('all');
+    [filter, setFilter] = useState('all'),
+    [choosing, setChoosing] = useState(false);
   async function refresh() {
     setError('');
     setLoading(true);
@@ -79,11 +81,14 @@ export function Runbooks() {
   return (
     <>
       <PageHeader
-        title="Operations desk"
-        description="Observation reports and application or task maintenance windows."
+        title="Run queue"
+        description="Select a run to inspect its steps and recorded results."
       >
         <button disabled={loading || busy} onClick={() => void refresh()}>
           <RefreshCw size={16} className={loading ? 'spin' : ''} /> Refresh runs
+        </button>
+        <button className="primary" disabled={busy} onClick={() => setChoosing(true)}>
+          <Plus size={16} /> New run
         </button>
       </PageHeader>
       <div className="runbook-stats">
@@ -100,39 +105,6 @@ export function Runbooks() {
           <strong>{runs.filter((r) => r.status === 'completed').length}</strong> completed
         </span>
         <span className="persist-note">History for this account</span>
-      </div>
-      <div className="template-heading">
-        <h2>New run</h2>
-      </div>
-      <div className="template-grid">
-        {(Object.entries(templates) as Array<[TemplateId, (typeof templates)[TemplateId]]>).map(
-          ([id, t], i) => (
-            <button
-              key={id}
-              className="template-card"
-              disabled={busy}
-              onClick={() => setTemplate(id)}
-            >
-              <span className="template-symbol">
-                {i === 0 ? (
-                  <Activity size={22} />
-                ) : i === 1 ? (
-                  <ClipboardList size={22} />
-                ) : (
-                  <Timer size={22} />
-                )}
-              </span>
-              <div>
-                <span className="eyebrow">
-                  {t.target === 'none' ? 'Observation' : 'Maintenance'} · {t.steps.length} steps
-                </span>
-                <h3>{t.title}</h3>
-                <p>{t.description}</p>
-              </div>
-              <ArrowUpRight size={17} />
-            </button>
-          ),
-        )}
       </div>
       {error && <ErrorBox error={error} />}
       <div className="runs-workbench">
@@ -198,9 +170,7 @@ export function Runbooks() {
                 </button>
               ))}
               {!visible.length && (
-                <p className="padded muted">
-                  No matching runs. Choose a runbook above to create a plan.
-                </p>
+                <p className="padded muted">No matching runs. Use New run to create a plan.</p>
               )}
             </div>
           )}
@@ -221,6 +191,50 @@ export function Runbooks() {
         Maintenance windows require manual restoration. Closing this page leaves the application or
         task in its current state.
       </p>
+      {choosing && (
+        <Modal
+          title="Choose a runbook"
+          subtitle="Review the steps before creating a run"
+          onClose={() => setChoosing(false)}
+        >
+          <div className="modal-body">
+            {' '}
+            <div className="template-grid">
+              {(
+                Object.entries(templates) as Array<[TemplateId, (typeof templates)[TemplateId]]>
+              ).map(([id, t], i) => (
+                <button
+                  key={id}
+                  className="template-card"
+                  disabled={busy}
+                  onClick={() => {
+                    setChoosing(false);
+                    setTemplate(id);
+                  }}
+                >
+                  <span className="template-symbol">
+                    {i === 0 ? (
+                      <Activity size={22} />
+                    ) : i === 1 ? (
+                      <ClipboardList size={22} />
+                    ) : (
+                      <Timer size={22} />
+                    )}
+                  </span>
+                  <div>
+                    <span className="eyebrow">
+                      {t.target === 'none' ? 'Observation' : 'Maintenance'} · {t.steps.length} steps
+                    </span>
+                    <h3>{t.title}</h3>
+                    <p>{t.description}</p>
+                  </div>
+                  <ArrowUpRight size={17} />
+                </button>
+              ))}
+            </div>
+          </div>
+        </Modal>
+      )}
       {template && (
         <CreateRun
           template={template}

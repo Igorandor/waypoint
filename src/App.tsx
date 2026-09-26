@@ -1,3 +1,4 @@
+import { RelayShell } from './layout/RelayShell';
 import { lazy, Suspense, useEffect, useState } from 'react';
 
 import {
@@ -10,13 +11,9 @@ import {
   ExternalLink,
   Globe,
   LayoutDashboard,
-  LogOut,
-  Menu,
-  Moon,
   Search,
   Server,
   Shield,
-  Sun,
   Users,
   Workflow,
   X,
@@ -60,7 +57,6 @@ export default function App() {
     [checking, setChecking] = useState(true),
     [page, setPage] = useState(() => location.hash.slice(1) || 'runbooks'),
     [toast, setToast] = useState(''),
-    [menu, setMenu] = useState(false),
     [command, setCommand] = useState(false),
     [theme, setTheme] = useState(() => localStorage.getItem('relay-theme') ?? 'light');
 
@@ -94,7 +90,6 @@ export default function App() {
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenu(false);
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setCommand((v) => !v);
@@ -107,7 +102,6 @@ export default function App() {
   const navigate = (id: string) => {
     location.hash = id;
     setPage(id);
-    setMenu(false);
     setCommand(false);
   };
 
@@ -119,7 +113,7 @@ export default function App() {
     props = { info, notify: setToast };
 
   return (
-    <div className="app-shell">
+    <div className="app-shell relay-app">
       <a
         href="#main-content"
         className="skip-link"
@@ -130,128 +124,50 @@ export default function App() {
       >
         Skip to main content
       </a>
-      <aside className={'sidebar ' + (menu ? 'open' : '')}>
-        <a className="brand" href="#runbooks" onClick={() => navigate('runbooks')}>
-          <span className="brand-mark">R</span>
-          <span>
-            relay<span className="brand-subtitle">IRIS OPERATIONS</span>
-          </span>
-        </a>
-        <div className="instance-select">
-          <span className="live-dot" />
-          <div>
-            <strong>Connected instance</strong>
-            <span>{info.systemMode || 'IRIS Community'}</span>
-          </div>
-          <Server size={16} />
+      <RelayShell
+        page={page}
+        navigate={navigate}
+        navigation={navigation}
+        username={info.username}
+        theme={theme}
+        onTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+        onCommand={() => setCommand(true)}
+        onLogout={async () => {
+          await request('logout', {});
+          setSession(undefined);
+        }}
+      >
+        <div hidden={page !== 'runbooks'}>
+          <Runbooks />
         </div>
-        <nav aria-label="Main navigation">
-          {navigation.map(({ id, label, icon: Icon }) => (
-            <button
-              className={page === id ? 'active' : ''}
-              key={id}
-              onClick={() => navigate(id)}
-              aria-current={page === id ? 'page' : undefined}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-              {page === id && <span className="nav-active-dot" />}
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar-bottom">
-          <button
-            className="profile"
-            onClick={async () => {
-              await request('logout', {});
-              setSession(undefined);
-            }}
-          >
-            <span className="avatar">{info.username?.slice(0, 2).toUpperCase()}</span>
-            <span>
-              <strong>{info.username}</strong>
-              <small>Sign out</small>
-            </span>
-            <LogOut size={16} />
-          </button>
-        </div>
-      </aside>
-      {menu && (
-        <button
-          className="mobile-overlay"
-          aria-label="Close navigation"
-          onClick={() => setMenu(false)}
-        />
-      )}
+        {page === 'overview' && <Overview navigate={navigate} info={info} />}
 
-      <div className="main-shell">
-        <header className="topbar">
-          <div className="breadcrumb">
-            <IconButton title="Toggle navigation" onClick={() => setMenu((v) => !v)}>
-              <Menu size={18} />
-            </IconButton>
-            <span>Workspace</span>
-            <span className="crumb-separator">/</span>
-            <strong>{navigation.find((n) => n.id === page)?.label ?? 'Overview'}</strong>
-          </div>
-          <div className="topbar-actions">
-            <button
-              className="quick-find"
-              aria-label="Go to workspace"
-              onClick={() => setCommand(true)}
-            >
-              <Search size={16} />
-              <span>Go to…</span>
-              <kbd>Ctrl K</kbd>
-            </button>
-            <IconButton
-              title={theme === 'light' ? 'Use dark theme' : 'Use light theme'}
-              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-            >
-              {theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}
-            </IconButton>
-          </div>
-        </header>
-        <main id="main-content" tabIndex={-1}>
-          <div hidden={page !== 'runbooks'}>
-            <Runbooks />
-          </div>
-          {page === 'overview' && <Overview navigate={navigate} info={info} />}
+        {page === 'apps' && <Collection entity={entities.apps} {...props} />}
 
-          {page === 'apps' && <Collection entity={entities.apps} {...props} />}
+        {page === 'permissions' && (
+          <Group key="permissions" ids={['users', 'roles', 'resources']} {...props} />
+        )}
 
-          {page === 'permissions' && (
-            <Group key="permissions" ids={['users', 'roles', 'resources']} {...props} />
-          )}
+        {page === 'security' && (
+          <Group
+            key="security"
+            ids={['collections', 'secrets', 'certificates', 'tls', 'oauthServers', 'oauthClients']}
+            {...props}
+          />
+        )}
 
-          {page === 'security' && (
-            <Group
-              key="security"
-              ids={[
-                'collections',
-                'secrets',
-                'certificates',
-                'tls',
-                'oauthServers',
-                'oauthClients',
-              ]}
-              {...props}
-            />
-          )}
+        {page === 'tasks' && <Collection entity={entities.tasks} {...props} />}
 
-          {page === 'tasks' && <Collection entity={entities.tasks} {...props} />}
+        {page === 'system' && <System {...props} />}
+        {page === 'logs' && <Logs />}
+        {page === 'explorer' && (
+          <Suspense fallback={<Loading />}>
+            <Explorer />
+          </Suspense>
+        )}
 
-          {page === 'system' && <System {...props} />}
-          {page === 'logs' && <Logs />}
-          {page === 'explorer' && (
-            <Suspense fallback={<Loading />}>
-              <Explorer />
-            </Suspense>
-          )}
-
-          {!navigation.some((n) => n.id === page) && <Overview navigate={navigate} info={info} />}
-        </main>
-      </div>
+        {!navigation.some((n) => n.id === page) && <Overview navigate={navigate} info={info} />}
+      </RelayShell>
 
       {toast && (
         <div className="toast" role="status">
@@ -382,7 +298,7 @@ function Login({ onLogin }: { onLogin: (s: any) => void }) {
   }, []);
 
   return (
-    <div className="login-layout">
+    <div className="login-layout relay-login">
       <div className="login-form">
         <div className="login-card">
           <div className="brand">

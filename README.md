@@ -8,14 +8,16 @@ Built for the [InterSystems Programming Contest: Build Your Own Management Porta
 
 ## Start with the Operations desk
 
-1. Choose **Observe an instance** and review its four steps. **Create run** saves the plan without executing it.
-2. Choose **Run next step** to capture each source. Expand recorded steps and export the completed report.
+1. Choose **New run → Observe an instance** and review its four steps. **Create run** saves the plan without executing it.
+2. Choose **Run next step** to capture each source. Select recorded steps and export the completed report.
 3. For a maintenance window, select an application or task and type its exact target. The first step records the original state.
 4. Run the next transition and inspect the read-back evidence. Complete the external maintenance work and record a note at the checkpoint.
 5. Restore the original state, or use **Restore now** to bypass the checkpoint and restore early. Finish the closing evidence step.
 6. If a write result is uncertain, use **Check current state**. Relay reads the target before allowing another decision.
 
 Run history survives gateway restarts in the configured data volume and is scoped to the signed-in account. Closing the browser does not automatically restore an open window. Read [runbook semantics and recovery](docs/RUNBOOKS.md).
+
+The left tool rail opens Runs, Status, Apps, Access, Secrets, Tasks, Host, Logs and API. Run history, step selection and the recorded result occupy separate panes. **New run** opens the runbook picker; it does not execute an operation.
 
 ## Complete administration tools
 

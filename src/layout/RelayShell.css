@@ -1,0 +1,484 @@
+/* Relay is a queue and step inspector. The tool rail stays separate from operation state. */
+:root {
+  background: var(--bg);
+  color: var(--text);
+  --bg: #e9edef;
+  --panel: #fff;
+  --text: #202e36;
+  --muted: #586b76;
+  --line: #cbd4d9;
+  --accent: #985016;
+  --tint: #f6ecdf;
+}
+.relay-app {
+  display: block;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+.relay-commandbar {
+  height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 22px;
+  background: #17242d;
+  color: #e8eff3;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  border-bottom: 1px solid #40515d;
+}
+.relay-wordmark {
+  font:
+    700 26px 'Cascadia Code',
+    Consolas,
+    monospace;
+  letter-spacing: -1.5px;
+}
+.relay-wordmark span {
+  font-size: 12px;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: #9dafbd;
+  margin-left: 14px;
+}
+.relay-location {
+  font-size: 12px;
+  color: #bac8d1;
+  border-left: 1px solid #52616c;
+  padding-left: 22px;
+}
+.relay-command-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+}
+.relay-command-actions button {
+  border: 1px solid #3a4b57;
+  border-radius: 3px;
+  background: transparent;
+  color: #e8eff3;
+}
+.relay-command-actions button:hover {
+  background: #30414c;
+}
+.relay-command-actions kbd {
+  border: 0;
+  background: transparent;
+  color: #a3b5c2;
+}
+.relay-toolrail {
+  position: fixed;
+  left: 0;
+  top: 58px;
+  bottom: 0;
+  width: 82px;
+  background: #20313c;
+  padding: 10px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-y: auto;
+  z-index: 25;
+}
+.relay-toolrail button {
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 62px;
+  font-size: 10px;
+  padding: 9px 4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: #b9c8d1;
+}
+.relay-toolrail button:hover {
+  background: #304752;
+}
+.relay-toolrail button[aria-current] {
+  color: #ffe0b4;
+  border-color: #775936;
+  background: #3c3c35;
+}
+.relay-console {
+  margin: 0 0 0 82px;
+  width: calc(100% - 82px);
+  max-width: none;
+  padding: 22px 26px 36px;
+  min-height: calc(100vh - 58px);
+}
+.relay-console h1,
+.relay-console h2,
+.relay-console h3 {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  letter-spacing: 0;
+}
+.relay-console h1 {
+  font-size: 23px;
+}
+.relay-console .page-header {
+  align-items: center;
+  margin-bottom: 18px;
+}
+.relay-console .page-header p {
+  margin-top: 4px;
+  font-size: 12px;
+}
+.relay-console .panel,
+.relay-console button,
+.relay-console input,
+.relay-console select,
+.relay-console textarea {
+  border-radius: 3px;
+}
+.relay-console .badge {
+  border-radius: 2px;
+  font-family: 'Cascadia Code', Consolas, monospace;
+}
+.relay-console .runbook-stats {
+  border-top: 0;
+  padding: 0 0 14px;
+  margin: 0 0 18px;
+  font:
+    12px 'Cascadia Code',
+    Consolas,
+    monospace;
+  gap: 22px;
+}
+.relay-console .runbook-stats strong {
+  font-size: 15px;
+}
+.relay-console .runs-workbench {
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: 18px;
+}
+.relay-console .runs-list .section-heading {
+  padding: 15px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 12px;
+}
+.relay-console .run-options {
+  padding: 0;
+  max-height: 70vh;
+}
+.relay-console .run-options > button {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  margin: 0;
+  border-radius: 0;
+  padding: 13px 15px;
+  gap: 5px;
+}
+.relay-console .run-options > button.selected {
+  box-shadow: inset 3px 0 var(--accent);
+  background: var(--tint);
+}
+.relay-console .run-options strong {
+  font-size: 12px;
+}
+.relay-console .run-options .badge {
+  padding: 2px 4px;
+}
+.relay-console .run-heading {
+  padding: 18px 20px 12px;
+  border-top: 3px solid var(--accent);
+}
+.relay-console .run-heading h2 {
+  font-size: 21px;
+  margin: 6px 0;
+}
+.relay-console .run-heading .eyebrow {
+  font:
+    11px 'Cascadia Code',
+    Consolas,
+    monospace;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.relay-console .run-meta {
+  padding: 0 20px 16px;
+  border-bottom: 1px solid var(--line);
+  gap: 12px;
+}
+.step-workbench {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  min-height: 350px;
+}
+.step-index {
+  border-right: 1px solid var(--line);
+  background: var(--bg);
+  padding: 12px 0;
+}
+.step-index button {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: left;
+  gap: 10px;
+  border: 0;
+  width: 100%;
+  padding: 13px 12px;
+  background: transparent;
+  border-radius: 0;
+}
+.step-index button[aria-pressed='true'] {
+  background: var(--panel);
+  box-shadow: inset -3px 0 var(--accent);
+}
+.step-index strong {
+  font-size: 12px;
+  line-height: 1.45;
+  display: block;
+  font-weight: 550;
+}
+.step-index small {
+  display: block;
+  margin-top: 5px;
+  font:
+    10px 'Cascadia Code',
+    Consolas,
+    monospace;
+  color: var(--muted);
+}
+.step-index-number {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  font:
+    11px Consolas,
+    monospace;
+}
+.step-done .step-index-number {
+  color: var(--accent);
+}
+.step-uncertain .step-index-number,
+.step-failed .step-index-number {
+  color: #b64324;
+}
+.step-inspector {
+  min-width: 0;
+  padding: 20px;
+}
+.step-inspector-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font:
+    11px 'Cascadia Code',
+    Consolas,
+    monospace;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.step-inspector h3 {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+.step-inspector time {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+.step-inspector .run-evidence {
+  max-height: 320px;
+  min-height: 140px;
+  margin: 16px 0;
+  font-size: 11px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 14px;
+}
+.step-inspector blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 16px 0;
+  padding: 10px 15px;
+  font-size: 13px;
+}
+.step-no-result {
+  margin: 20px 0;
+  padding: 28px 12px;
+  border: 1px dashed var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+.relay-console .run-closed {
+  margin: 0;
+  border-radius: 0;
+  border-top: 1px solid var(--line);
+  padding: 16px 20px;
+  background: var(--bg);
+}
+.relay-console .run-control {
+  padding: 18px 20px;
+  border-top: 1px solid var(--line);
+}
+.relay-console .run-events {
+  padding: 16px 20px;
+}
+.relay-console .runbook-footnote {
+  margin: 16px 0 0;
+  padding: 0;
+}
+.relay-app .template-grid {
+  grid-template-columns: 1fr;
+  margin: 0;
+}
+.relay-app .template-card {
+  border-radius: 3px;
+}
+.relay-app .modal {
+  border-radius: 4px;
+}
+.relay-app .primary,
+.relay-login .primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+[data-theme='dark'] .relay-app .primary,
+[data-theme='dark'] .relay-login .primary {
+  color: #17242d;
+}
+.relay-console .table-wrap {
+  border-radius: 3px;
+}
+.relay-console th {
+  background: var(--bg);
+  font-family: 'Cascadia Code', Consolas, monospace;
+  text-transform: none;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+.relay-console td {
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+.relay-login {
+  background: #17242d;
+}
+.relay-login .login-card {
+  border: 1px solid #566671;
+  border-top: 4px solid #dba763;
+  border-radius: 0;
+}
+.relay-login .brand {
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 30px;
+}
+.relay-login .brand-mark {
+  display: none;
+}
+.relay-login .login-card h1 {
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 22px;
+}
+[data-theme='dark'] {
+  --bg: #111c23;
+  --panel: #1d2b34;
+  --text: #e4edf3;
+  --muted: #a2b5c2;
+  --line: #3b4c58;
+  --accent: #f0bd78;
+  --tint: #39372f;
+  --input: #17242d;
+}
+@media (max-width: 1100px) {
+  .relay-console {
+    padding: 20px 18px;
+  }
+  .relay-console .runs-workbench {
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .step-workbench {
+    grid-template-columns: 170px minmax(0, 1fr);
+  }
+  .relay-location {
+    display: none;
+  }
+}
+@media (max-width: 800px) {
+  .relay-commandbar {
+    padding: 0 14px;
+    gap: 12px;
+  }
+  .relay-wordmark span,
+  .relay-command-actions button > span,
+  .relay-command-actions kbd {
+    display: none;
+  }
+  .relay-command-actions {
+    gap: 5px;
+  }
+  .relay-command-actions button {
+    padding: 8px;
+  }
+  .relay-toolrail {
+    position: sticky;
+    top: 58px;
+    width: 100%;
+    height: 82px;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 4px 8px;
+  }
+  .relay-toolrail button {
+    min-width: 61px;
+    min-height: 56px;
+    padding: 7px;
+  }
+  .relay-console {
+    margin: 0;
+    width: 100%;
+    padding: 18px 14px;
+  }
+  .relay-console .page-header {
+    align-items: flex-start;
+  }
+  .relay-console .runs-workbench {
+    grid-template-columns: 1fr;
+  }
+  .relay-console .run-options {
+    max-height: 200px;
+  }
+  .relay-console .runbook-stats {
+    gap: 10px 15px;
+    flex-wrap: wrap;
+  }
+  .relay-console .runbook-stats > span {
+    font-size: 10px;
+  }
+  .step-workbench {
+    grid-template-columns: 1fr;
+  }
+  .step-index {
+    display: flex;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 0;
+  }
+  .step-index button {
+    width: 175px;
+    flex-shrink: 0;
+  }
+  .step-index button[aria-pressed='true'] {
+    box-shadow: inset 0 -3px var(--accent);
+  }
+  .step-inspector {
+    padding: 17px;
+  }
+  .relay-console .run-heading {
+    padding: 16px;
+  }
+}

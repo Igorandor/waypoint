@@ -1,14 +1,5 @@
-import { useState } from 'react';
-import {
-  ArrowRight,
-  Check,
-  ChevronRight,
-  CircleAlert,
-  Clock3,
-  Download,
-  RotateCcw,
-  Square,
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArrowRight, Check, Clock3, Download, RotateCcw, Square } from 'lucide-react';
 import { nextStep, writeStep, type Run } from '../../../shared/runbook';
 import { download } from '../../api';
 import { Badge, ErrorBox, Modal } from '../../components/ui';
@@ -27,6 +18,11 @@ export function RunDetail({
     [confirmation, setConfirmation] = useState('');
   const index = nextStep(run),
     current = run.steps[index];
+  const [selectedStep, setSelectedStep] = useState(Math.max(index, 0));
+  useEffect(() => {
+    if (index >= 0) setSelectedStep(index);
+  }, [index]);
+  const inspected = run.steps[selectedStep];
   const label =
     current?.kind === 'checkpoint'
       ? 'Record note and continue'
@@ -79,70 +75,63 @@ export function RunDetail({
           </button>
         </div>
       )}
-      <ol className="run-timeline">
-        {run.steps.map((step, i) => (
-          <li className={'step-' + step.status} key={step.kind}>
-            <div className="step-line">
-              <span className="step-number">
-                {step.status === 'done' ? (
-                  <Check size={16} />
-                ) : step.status === 'uncertain' || step.status === 'failed' ? (
-                  <CircleAlert size={16} />
-                ) : (
-                  i + 1
-                )}
+      <div className="step-workbench">
+        <nav className="step-index" aria-label="Run steps">
+          {run.steps.map((step, i) => (
+            <button
+              key={step.kind}
+              aria-pressed={selectedStep === i}
+              onClick={() => setSelectedStep(i)}
+              className={'step-' + step.status}
+            >
+              <span className="step-index-number">
+                {step.status === 'done' ? <Check size={15} /> : i + 1}
               </span>
+              <span>
+                <strong>{step.title}</strong>
+                <small>{step.status === 'done' ? 'Recorded' : step.status}</small>
+              </span>
+            </button>
+          ))}
+        </nav>
+        <section className="step-inspector" aria-label="Selected step result" aria-live="polite">
+          <div className="step-inspector-heading">
+            <span>
+              Step {selectedStep + 1} / {run.steps.length}
+            </span>
+            <Badge
+              tone={
+                inspected.status === 'done'
+                  ? 'good'
+                  : inspected.status === 'failed' || inspected.status === 'uncertain'
+                    ? 'warning'
+                    : 'neutral'
+              }
+            >
+              {inspected.status}
+            </Badge>
+          </div>
+          <h3>{inspected.title}</h3>
+          <p>{inspected.description}</p>
+          {inspected.finishedAt && <time>{new Date(inspected.finishedAt).toLocaleString()}</time>}
+          {inspected.error && <ErrorBox error={inspected.error} />}
+          {inspected.note && <blockquote>{inspected.note}</blockquote>}
+          {inspected.evidence !== undefined ? (
+            <pre className="run-evidence">{JSON.stringify(inspected.evidence, null, 2)}</pre>
+          ) : (
+            <div className="step-no-result">
+              {inspected.status === 'skipped'
+                ? 'This step was skipped.'
+                : 'No result recorded for this step.'}
             </div>
-            <details open={i === index || step.status === 'uncertain' || step.status === 'failed'}>
-              <summary>
-                <div>
-                  <strong>{step.title}</strong>
-                  <small>
-                    {step.finishedAt
-                      ? new Date(step.finishedAt).toLocaleTimeString()
-                      : step.status === 'pending'
-                        ? 'Not started'
-                        : step.status === 'running'
-                          ? 'Waiting for IRIS'
-                          : step.status === 'skipped'
-                            ? 'Bypassed'
-                            : 'Review needed'}
-                  </small>
-                </div>
-                <Badge
-                  tone={
-                    step.status === 'done'
-                      ? 'good'
-                      : step.status === 'failed' || step.status === 'uncertain'
-                        ? 'warning'
-                        : 'neutral'
-                  }
-                >
-                  {step.status === 'done' ? 'Recorded' : step.status}
-                </Badge>
-                <ChevronRight size={15} />
-              </summary>
-              <div className="step-body">
-                <p>{step.description}</p>
-                {step.error && <ErrorBox error={step.error} />}{' '}
-                {step.note && <blockquote>{step.note}</blockquote>}
-                {step.evidence !== undefined && (
-                  <>
-                    <span className="evidence-label">Recorded evidence</span>
-                    <pre className="run-evidence">{JSON.stringify(step.evidence, null, 2)}</pre>
-                  </>
-                )}
-                {step.attempts > 0 && (
-                  <small className="muted">
-                    {step.attempts} attempt{step.attempts === 1 ? '' : 's'} recorded. Writes are
-                    never automatically replayed.
-                  </small>
-                )}
-              </div>
-            </details>
-          </li>
-        ))}
-      </ol>
+          )}
+          {inspected.attempts > 0 && (
+            <small>
+              {inspected.attempts} attempt{inspected.attempts === 1 ? '' : 's'} recorded
+            </small>
+          )}
+        </section>
+      </div>
       {run.status === 'active' && current && (
         <div className="run-control">
           {current.kind === 'checkpoint' && (
@@ -221,7 +210,7 @@ export function RunDetail({
             <strong>{run.status === 'completed' ? 'Run complete' : 'Run closed'}</strong>
             <p>
               {run.status === 'completed'
-                ? 'Expand a step to inspect its result. Skipped steps remain marked in this report.'
+                ? 'Select a step to inspect its result. Skipped steps remain marked in this report.'
                 : 'The recorded steps remain available. No remaining step will run.'}
             </p>
           </div>
