@@ -1,0 +1,7 @@
+zn "%SYS"
+set sc=$SYSTEM.OBJ.LoadDir("/opt/relay-iris/Relay","ck",,1)
+if $SYSTEM.Status.IsError(sc) do $SYSTEM.Status.DisplayError(sc) halt 1
+set sc=##class(Relay.Installer).Install()
+if $SYSTEM.Status.IsError(sc) do $SYSTEM.Status.DisplayError(sc) halt 1
+write "Relay extension installed",!
+halt

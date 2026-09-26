@@ -1,0 +1,37 @@
+name: iris-relay
+services:
+  iris:
+    build:
+      context: .
+      dockerfile: iris/Dockerfile
+    command: ['--check-caps', 'false']
+    ports:
+      - '127.0.0.1:${IRIS_WEB_PORT:-52790}:52773'
+    volumes:
+      - iris-data:/usr/irissys/mgr
+    healthcheck:
+      test: ['CMD', 'iris', 'qlist', 'IRIS']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 45s
+  portal:
+    build: .
+    environment:
+      IRIS_URL: http://iris:52773
+      IRIS_INSTANCE_ID: ${RELAY_INSTANCE_ID:-relay-local}
+      RELAY_DATA_DIR: /app/data
+      HOST: 0.0.0.0
+      PORT: 3100
+      PUBLIC_ORIGIN: ${RELAY_ORIGIN:-http://localhost:3300}
+      COOKIE_SECURE: 'false'
+    ports:
+      - '127.0.0.1:${RELAY_PORT:-3300}:3100'
+    volumes:
+      - relay-runs:/app/data
+    depends_on:
+      iris:
+        condition: service_healthy
+volumes:
+  iris-data:
+  relay-runs:
