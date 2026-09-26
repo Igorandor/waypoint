@@ -110,7 +110,7 @@ export const templates: Record<
         kind: 'restore-app',
         title: 'Restore the original state',
         description:
-          'Restore the exact enabled/disabled state recorded in step one and read it back.',
+          'Restore a change made by this run and read it back. If this run made no change, preserve the current state.',
       },
       {
         kind: 'logs',
@@ -145,7 +145,7 @@ export const templates: Record<
         kind: 'restore-task',
         title: 'Restore original scheduling',
         description:
-          'Restore the suspension state recorded at the start, including an originally suspended task.',
+          'Restore scheduling changed by this run. If the task was already suspended, preserve its current state.',
       },
       {
         kind: 'task-history',

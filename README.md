@@ -168,3 +168,5 @@ Original application code is MIT licensed. The InterSystems API specification is
 ## Shared foundation
 
 The general administration foundation is shared with the sibling Harbor project. Relay adds its own durable operations domain and standalone native extension. No sibling checkout is required. See [project provenance](docs/PROVENANCE.md).
+
+See [Reading and editing native API data](docs/DATA_VIEWS.md) for interactive response views, nested configuration controls and their limits.

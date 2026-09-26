@@ -1,3 +1,4 @@
+import { DataView } from '../../components/DataView';
 import { useEffect, useState } from 'react';
 import { ArrowRight, Check, Clock3, Download, RotateCcw, Square } from 'lucide-react';
 import { nextStep, writeStep, type Run } from '../../../shared/runbook';
@@ -117,7 +118,7 @@ export function RunDetail({
           {inspected.error && <ErrorBox error={inspected.error} />}
           {inspected.note && <blockquote>{inspected.note}</blockquote>}
           {inspected.evidence !== undefined ? (
-            <pre className="run-evidence">{JSON.stringify(inspected.evidence, null, 2)}</pre>
+            <DataView key={inspected.kind} data={inspected.evidence} kind={inspected.kind} />
           ) : (
             <div className="step-no-result">
               {inspected.status === 'skipped'

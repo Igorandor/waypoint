@@ -14,6 +14,7 @@ import { redact } from '../shared/redaction.js';
 type Actor = { owner: string; auth: string };
 export class RunEngine {
   private busy = new Set<string>();
+  private targets = new Set<string>();
   constructor(
     readonly store: RunStore,
     private client: IrisClient,
@@ -41,6 +42,37 @@ export class RunEngine {
   private async read(actor: Actor, id: string) {
     return this.store.read(actor.owner, this.instance, id);
   }
+  private applicationKey(target: string) {
+    return target.toLowerCase().replace(/\/+$/, '') || '/';
+  }
+  private requireNonManagementApplication(target: string) {
+    const canonical = this.applicationKey(target);
+    if (
+      !canonical.startsWith('/') ||
+      canonical === '/' ||
+      canonical === '/api' ||
+      /^\/(api\/(admin|relay)|csp\/sys)(\/|$)/.test(canonical)
+    )
+      throw new ApiError(
+        400,
+        'Choose a non-management application. Relay protects its own API and the native administration routes.',
+      );
+  }
+  private async targetLocked<T>(run: Run, action: () => Promise<T>): Promise<T> {
+    if (run.template === 'observe') return action();
+    // IRIS web-application identifiers ignore case and trailing slashes.
+    const target =
+      run.template === 'application-window' ? this.applicationKey(run.target) : run.target;
+    const key = JSON.stringify([this.instance, run.template, target]);
+    if (this.targets.has(key))
+      throw new ApiError(409, 'Another run is operating on this target. Refresh before retrying.');
+    this.targets.add(key);
+    try {
+      return await action();
+    } finally {
+      this.targets.delete(key);
+    }
+  }
   async get(actor: Actor, id: string) {
     if (this.busy.has(this.key(actor, id))) return this.read(actor, id);
     return this.locked(actor, id, async () => {
@@ -63,17 +95,7 @@ export class RunEngine {
     if (!definition) throw new ApiError(400, 'Unknown runbook template.');
     if (definition.target !== 'none' && confirmation !== target)
       throw new ApiError(400, 'Type the exact target to confirm this plan.');
-    if (
-      definition.target === 'app' &&
-      (!target.startsWith('/') ||
-        target === '/' ||
-        target === '/api' ||
-        /^\/(api\/(admin|relay)|csp\/sys)(\/|$)/i.test(target))
-    )
-      throw new ApiError(
-        400,
-        'Choose a non-management application. Relay protects its own API and the native administration routes.',
-      );
+    if (definition.target === 'app') this.requireNonManagementApplication(target);
     if (definition.target === 'task' && !/^[1-9]\d*$/.test(target))
       throw new ApiError(400, 'Choose a valid task identifier.');
     return this.locked(actor, 'create', async () => {
@@ -146,6 +168,8 @@ export class RunEngine {
     if (!step) throw new ApiError(409, 'No step remains.');
     if (step.status === 'uncertain' || step.status === 'running')
       throw new ApiError(409, 'Reconcile this step before continuing.');
+    // Recheck stored plans created by an earlier version before disabling a route.
+    if (step.kind === 'disable-app') this.requireNonManagementApplication(run.target);
     if (step.kind === 'checkpoint' && !note.trim())
       throw new ApiError(400, 'Record a maintenance note before continuing.');
     step.status = 'running';
@@ -168,7 +192,14 @@ export class RunEngine {
             409,
             'The state changed after it was captured. Stop and review this run before changing IRIS.',
           );
-        if (current !== desired) {
+        if (restoring && !run.needsRestore) {
+          evidence = {
+            before: current,
+            requested: desired,
+            observed: current,
+            notice: 'This run made no change to restore. The current state was preserved.',
+          };
+        } else if (current !== desired) {
           if (!restoring) run.needsRestore = true;
           // Persist the obligation to restore before sending a potentially ambiguous write.
           await this.store.save(run);
@@ -288,9 +319,10 @@ export class RunEngine {
   }
   async next(actor: Actor, id: string, note = '') {
     await this.get(actor, id);
-    return this.locked(actor, id, async () =>
-      this.perform(actor, await this.read(actor, id), note),
-    );
+    return this.locked(actor, id, async () => {
+      const run = await this.read(actor, id);
+      return this.targetLocked(run, () => this.perform(actor, run, note));
+    });
   }
   async reconcile(actor: Actor, id: string) {
     await this.get(actor, id);
@@ -338,8 +370,10 @@ export class RunEngine {
         }
       run.steps[index].status = 'pending';
       this.event(run, 'restore-requested', 'Operator requested an early restoration.');
-      await this.store.save(run);
-      return this.perform(actor, run, '');
+      return this.targetLocked(run, async () => {
+        await this.store.save(run);
+        return this.perform(actor, run, '');
+      });
     });
   }
   async stop(actor: Actor, id: string) {

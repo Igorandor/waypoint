@@ -54,6 +54,13 @@ export function createApp(options: AppOptions) {
     next();
   });
   app.use('/api', (req, _res, next) => {
+    // Without an explicit public origin, only literal loopback hosts are accepted.
+    // Reflecting any Host as the allowed Origin permits DNS-rebinding requests.
+    if (
+      !options.origin &&
+      !/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(req.headers.host ?? '')
+    )
+      return next(new ApiError(403, 'Set PUBLIC_ORIGIN before using a non-loopback host.'));
     if (!['GET', 'HEAD'].includes(req.method)) {
       const origin = req.headers.origin;
       const allowed = options.origin ?? `http://${req.headers.host}`;
@@ -99,7 +106,7 @@ export function createApp(options: AppOptions) {
     const id = randomBytes(32).toString('hex'),
       csrf = randomBytes(32).toString('hex');
     sessions.set(id, { auth, csrf, created: time, seen: time, info: result.data, activity: [] });
-    attempts.delete(key);
+    // A valid account must not reset the budget for guesses against other accounts.
     res.cookie('relay_session', id, {
       httpOnly: true,
       sameSite: 'strict',
@@ -138,6 +145,20 @@ export function createApp(options: AppOptions) {
   const actor = (res: express.Response) => ({
     owner: String(res.locals.session.info.username),
     auth: res.locals.session.auth as string,
+  });
+  // Stored reports contain operating data: cached login identity is not authorization.
+  app.use('/api/runs', async (_req, res, next) => {
+    const session = res.locals.session as Session;
+    const current = await client.request(session.auth, { path: '/info', method: 'GET' });
+    if (
+      current.data.username !== session.info.username ||
+      current.data.privileges?.Operate?.use !== true
+    )
+      throw new ApiError(
+        403,
+        'Current IRIS operating privileges are required to access run reports.',
+      );
+    next();
   });
   app.get('/api/runs', async (_req, res) =>
     res.json(await engine.store.list(actor(res).owner, engine.instance)),
