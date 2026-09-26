@@ -54,6 +54,7 @@ const navigation = [
 
 export default function App() {
   const [session, setSession] = useState<any>(),
+    [sessionError, setSessionError] = useState(''),
     [checking, setChecking] = useState(true),
     [page, setPage] = useState(() => location.hash.slice(1) || 'runbooks'),
     [toast, setToast] = useState(''),
@@ -105,9 +106,27 @@ export default function App() {
     setCommand(false);
   };
 
+  async function logout() {
+    setSessionError('');
+    try {
+      await request('logout', {});
+      setSession(undefined);
+    } catch (error) {
+      setSessionError('Sign out could not be confirmed. ' + (error as Error).message);
+    }
+  }
+
   if (checking) return <Loading />;
 
-  if (!session) return <Login onLogin={setSession} />;
+  if (!session)
+    return (
+      <Login
+        onLogin={(value) => {
+          setSessionError('');
+          setSession(value);
+        }}
+      />
+    );
 
   const info = session.info,
     props = { info, notify: setToast };
@@ -132,11 +151,9 @@ export default function App() {
         theme={theme}
         onTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
         onCommand={() => setCommand(true)}
-        onLogout={async () => {
-          await request('logout', {});
-          setSession(undefined);
-        }}
+        onLogout={logout}
       >
+        {sessionError && <ErrorBox error={sessionError} retry={() => void logout()} />}
         <div hidden={page !== 'runbooks'}>
           <Runbooks />
         </div>

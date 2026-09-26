@@ -87,7 +87,7 @@ export function Runbooks() {
         <button disabled={loading || busy} onClick={() => void refresh()}>
           <RefreshCw size={16} className={loading ? 'spin' : ''} /> Refresh runs
         </button>
-        <button className="primary" disabled={busy} onClick={() => setChoosing(true)}>
+        <button className="primary" disabled={busy || loading} onClick={() => setChoosing(true)}>
           <Plus size={16} /> New run
         </button>
       </PageHeader>
@@ -141,7 +141,7 @@ export function Runbooks() {
                 <button
                   key={r.id}
                   className={run?.id === r.id ? 'selected' : ''}
-                  disabled={busy}
+                  disabled={busy || loading}
                   onClick={() => void select(r.id)}
                 >
                   <span className="run-option-top">
@@ -176,12 +176,16 @@ export function Runbooks() {
           )}
         </section>
         {run ? (
-          <RunDetail key={run.id} run={run} busy={busy} onAction={action} />
+          <RunDetail key={run.id} run={run} busy={busy || loading} onAction={action} />
         ) : (
           <section className="panel run-placeholder">
             <h2>No run selected</h2>
             <p>Select a saved run from the history, or create an observation report.</p>
-            <button className="primary" onClick={() => setTemplate('observe')}>
+            <button
+              className="primary"
+              disabled={busy || loading}
+              onClick={() => setTemplate('observe')}
+            >
               Create observation report <ArrowUpRight size={16} />
             </button>
           </section>
