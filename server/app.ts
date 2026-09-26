@@ -1,22 +1,15 @@
-import { consolePreview } from './activity.js';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import { ApiError, IrisClient, type Operation } from './upstream.js';
+import { Operators, type OperatorSession } from './operator-sessions.js';
+import { IrisClient, ApiError, type Operation } from './upstream.js';
 import { parameters } from '../shared/schema.js';
 import { RunEngine } from './run-engine.js';
 import { RunStore } from './run-store.js';
-type Session = {
-  auth: string;
-  csrf: string;
-  created: number;
-  seen: number;
-  info: any;
-  activity: any[];
-};
+import { runRoutes } from './run-routes.js';
+import { consolePreview } from './activity.js';
 export type AppOptions = {
   irisUrl: string;
   instanceId?: string;
@@ -27,18 +20,49 @@ export type AppOptions = {
   client?: IrisClient;
   now?: () => number;
 };
-export function createApp(options: AppOptions) {
+const signIn = z
+  .object({
+    username: z
+      .string()
+      .min(1)
+      .max(128)
+      .regex(/^[^:\r\n]+$/),
+    password: z.string().min(1).max(1024),
+  })
+  .strict();
+const operation = z
+  .object({
+    path: z.string().max(160),
+    method: z.enum(['GET', 'POST', 'PUT', 'DELETE']),
+    query: z.record(z.string().max(80), z.string().max(2000)).optional(),
+    body: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict();
+function nativeIdentity(info: any) {
+  const version = info?.apiVersion,
+    name = info?.username;
+  if (
+    (typeof version !== 'number' && !(typeof version === 'string' && /^\d+$/.test(version))) ||
+    !Number.isSafeInteger(Number(version)) ||
+    +version < 0 ||
+    typeof name !== 'string' ||
+    !name.trim() ||
+    name.length > 128
+  )
+    throw new ApiError(502, 'IRIS returned an invalid API version or account identity.');
+  if (+version < 2) throw new ApiError(409, 'Waypoint requires the SysAdmin v2 API.');
+}
+export function createApp(settings: AppOptions) {
   const app = express(),
-    sessions = new Map<string, Session>(),
-    attempts = new Map<string, { count: number; since: number }>();
-  const client = options.client ?? new IrisClient(options.irisUrl),
-    now = options.now ?? Date.now;
+    clock = settings.now ?? Date.now,
+    client = settings.client ?? new IrisClient(settings.irisUrl);
+  const operators = new Operators(clock, settings.secure ?? false);
   const engine =
-    options.runEngine ??
+    settings.runEngine ??
     new RunEngine(
-      new RunStore(options.dataDirectory ?? './data'),
+      new RunStore(settings.dataDirectory ?? './data'),
       client,
-      options.instanceId || new URL(options.irisUrl).origin,
+      settings.instanceId || new URL(settings.irisUrl).origin,
     );
   app.disable('x-powered-by');
   app.use(
@@ -48,232 +72,100 @@ export function createApp(options: AppOptions) {
       },
     }),
   );
-  app.use(express.json({ limit: '256kb' }));
-  app.use(cookieParser());
-  app.use('/api', (_req, res, next) => {
+  app.use('/api', (req, res, next) => {
     res.set('Cache-Control', 'no-store');
-    next();
-  });
-  app.use('/api', (req, _res, next) => {
-    // Without an explicit public origin, only literal loopback hosts are accepted.
-    // Reflecting any Host as the allowed Origin permits DNS-rebinding requests.
-    if (
-      !options.origin &&
-      !/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(req.headers.host ?? '')
-    )
-      return next(new ApiError(403, 'Set PUBLIC_ORIGIN before using a non-loopback host.'));
+    const host = req.get('host') ?? '';
+    if (!settings.origin && !/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(host))
+      throw new ApiError(403, 'Set PUBLIC_ORIGIN before using a non-loopback host.');
     if (!['GET', 'HEAD'].includes(req.method)) {
-      const origin = req.headers.origin;
-      const allowed = options.origin ?? `http://${req.headers.host}`;
-      if ((origin && origin !== allowed) || req.headers['sec-fetch-site'] === 'cross-site')
-        return next(new ApiError(403, 'Request origin is not allowed.'));
-      if (!req.is('application/json'))
-        return next(new ApiError(415, 'JSON requests are required.'));
+      if (
+        (req.get('origin') && req.get('origin') !== (settings.origin ?? 'http://' + host)) ||
+        req.get('sec-fetch-site') === 'cross-site'
+      )
+        throw new ApiError(403, 'Request origin is not allowed.');
+      if (!req.is('application/json')) throw new ApiError(415, 'JSON requests are required.');
     }
     next();
   });
+  app.use(express.json({ limit: 256 * 1024 }), cookieParser());
   app.get('/api/health', (_req, res) =>
-    res.json({ ok: true, app: 'Relay', target: new URL(options.irisUrl).host }),
+    res.json({ ok: true, app: 'Waypoint', target: new URL(settings.irisUrl).host }),
   );
   app.post('/api/login', async (req, res) => {
-    const parsed = z
-      .object({
-        username: z
-          .string()
-          .min(1)
-          .max(128)
-          .regex(/^[^:\r\n]+$/),
-        password: z.string().min(1).max(1024),
-      })
-      .parse(req.body);
-    const key = req.ip ?? 'local',
-      time = now();
-    for (const [k, a] of attempts) if (time - a.since > 60000) attempts.delete(k);
-    const attempt = attempts.get(key) ?? { count: 0, since: time };
-    if (attempt.count >= 10) throw new ApiError(429, 'Too many sign-in attempts. Wait one minute.');
-    attempt.count++;
-    attempts.set(key, attempt);
-    const auth = 'Basic ' + Buffer.from(`${parsed.username}:${parsed.password}`).toString('base64');
-    const result = await client.request(auth, { path: '/info', method: 'GET' });
-    const identity = z
-      .object({
-        apiVersion: z
-          .union([z.number().int().nonnegative(), z.string().regex(/^\d+$/)])
-          .transform(Number)
-          .refine(Number.isSafeInteger),
-        username: z
-          .string()
-          .min(1)
-          .max(128)
-          .refine((value) => value.trim().length > 0),
-      })
-      .safeParse(result.data);
-    if (!identity.success)
-      throw new ApiError(502, 'IRIS returned an invalid API version or account identity.');
-    if (Number(result.data.apiVersion) < 2)
-      throw new ApiError(
-        409,
-        'This portal requires the SysAdmin v2 API. Use IRIS Community 2026.2 or newer with v2 enabled.',
-      );
-    for (const [k, s] of sessions)
-      if (time - s.seen > 30 * 60000 || time - s.created > 8 * 3600000) sessions.delete(k);
-    if (sessions.size >= 100) throw new ApiError(503, 'Session capacity reached. Try again later.');
-    if (req.cookies.relay_session) sessions.delete(req.cookies.relay_session);
-    const id = randomBytes(32).toString('hex'),
-      csrf = randomBytes(32).toString('hex');
-    sessions.set(id, { auth, csrf, created: time, seen: time, info: result.data, activity: [] });
-    // A valid account must not reset the budget for guesses against other accounts.
-    res.cookie('relay_session', id, {
-      httpOnly: true,
-      sameSite: 'strict',
-      secure: options.secure ?? false,
-      path: '/',
-      maxAge: 8 * 3600000,
-    });
-    res.json({ info: result.data, csrf });
+    const input = signIn.parse(req.body);
+    operators.budget(req.ip ?? 'local');
+    const auth = 'Basic ' + Buffer.from(input.username + ':' + input.password).toString('base64');
+    const { data } = await client.request(auth, { path: '/info', method: 'GET' });
+    nativeIdentity(data);
+    res.json(operators.establish(req, res, auth, data));
   });
-  app.use('/api', (req, res, next) => {
-    const session = sessions.get(req.cookies.relay_session);
-    if (!session || now() - session.seen > 30 * 60000 || now() - session.created > 8 * 3600000) {
-      sessions.delete(req.cookies.relay_session);
-      return next(new ApiError(401, 'Your session has ended. Sign in to continue.'));
-    }
-    if (req.method !== 'GET') {
-      const token = String(req.headers['x-csrf-token'] ?? '');
-      const tokenBytes = Buffer.from(token);
-      const expectedBytes = Buffer.from(session.csrf);
-      if (tokenBytes.length !== expectedBytes.length || !timingSafeEqual(tokenBytes, expectedBytes))
-        return next(new ApiError(403, 'Invalid request token. Refresh the page.'));
-    }
-    session.seen = now();
-    res.locals.session = session;
-    next();
-  });
+  app.use('/api', operators.require);
   app.get('/api/session', (_req, res) =>
     res.json({ info: res.locals.session.info, csrf: res.locals.session.csrf }),
   );
   app.post('/api/logout', (req, res) => {
-    sessions.delete(req.cookies.relay_session);
-    res.clearCookie('relay_session', { path: '/' });
+    operators.remove(req, res);
     res.json({ ok: true });
   });
   app.get('/api/activity', (_req, res) => res.json(res.locals.session.activity));
-  const actor = (res: express.Response) => ({
-    owner: String(res.locals.session.info.username),
-    auth: res.locals.session.auth as string,
-  });
-  // Stored reports contain operating data: cached login identity is not authorization.
-  app.use('/api/runs', async (_req, res, next) => {
-    const session = res.locals.session as Session;
-    const current = await client.request(session.auth, { path: '/info', method: 'GET' });
-    if (
-      current.data.username !== session.info.username ||
-      current.data.privileges?.Operate?.use !== true
-    )
-      throw new ApiError(
-        403,
-        'Current IRIS operating privileges are required to access run reports.',
-      );
-    next();
-  });
-  app.get('/api/runs', async (_req, res) =>
-    res.json(await engine.store.list(actor(res).owner, engine.instance)),
-  );
-  app.post('/api/runs', async (req, res) => {
-    const input = z
-      .object({
-        template: z.enum(['observe', 'application-window', 'task-window']),
-        target: z.string().max(256).default(''),
-        confirmation: z.string().max(256).default(''),
-      })
-      .strict()
-      .parse(req.body);
-    res
-      .status(201)
-      .json(await engine.create(actor(res), input.template, input.target, input.confirmation));
-  });
-  app.get('/api/runs/:id', async (req, res) =>
-    res.json(await engine.get(actor(res), String(req.params.id))),
-  );
-  app.post('/api/runs/:id/next', async (req, res) => {
-    const input = z
-      .object({ note: z.string().max(2000).default('') })
-      .strict()
-      .parse(req.body);
-    res.json(await engine.next(actor(res), String(req.params.id), input.note));
-  });
-  app.post('/api/runs/:id/reconcile', async (req, res) =>
-    res.json(await engine.reconcile(actor(res), String(req.params.id))),
-  );
-  app.post('/api/runs/:id/restore', async (req, res) => {
-    const input = z
-      .object({ confirmation: z.string().max(256) })
-      .strict()
-      .parse(req.body);
-    res.json(await engine.restore(actor(res), String(req.params.id), input.confirmation));
-  });
-  app.post('/api/runs/:id/stop', async (req, res) =>
-    res.json(await engine.stop(actor(res), String(req.params.id))),
-  );
+  runRoutes(app, engine, client);
   app.post('/api/iris', async (req, res) => {
-    const op = z
-      .object({
-        path: z.string().max(160),
-        method: z.enum(['GET', 'PUT', 'POST', 'DELETE']),
-        query: z.record(z.string().max(80), z.string().max(2000)).optional(),
-        body: z.record(z.string(), z.unknown()).optional(),
-      })
-      .strict()
-      .parse(req.body) as Operation;
+    const command = operation.parse(req.body) as Operation;
     if (
-      (op.method === 'GET' || op.path === '/v2/security/audit/records') &&
-      parameters(op.path, op.method.toLowerCase()).some((p) => p.name === 'maxRows') &&
-      !op.query?.maxRows
+      (command.method === 'GET' || command.path === '/v2/security/audit/records') &&
+      parameters(command.path, command.method).some((field) => field.name === 'maxRows') &&
+      !command.query?.maxRows
     )
-      op.query = { ...op.query, maxRows: '250' };
-    const session: Session = res.locals.session,
-      start = now();
+      command.query = { ...command.query, maxRows: '250' };
+    const session = res.locals.session as OperatorSession,
+      started = clock();
+    const receipt = (status: number, output?: unknown) => {
+      session.activity = [
+        {
+          at: new Date(clock()).toISOString(),
+          method: command.method,
+          path: command.path,
+          status,
+          elapsed: clock() - started,
+          console: consolePreview(output),
+        },
+        ...session.activity,
+      ].slice(0, 100);
+    };
     try {
-      const result = await client.request(session.auth, op);
-      if (op.method !== 'GET' || result.console?.length) {
-        session.activity.unshift({
-          at: new Date(now()).toISOString(),
-          method: op.method,
-          path: op.path,
-          target: op.query?.name ?? op.query?.id ?? op.query?.alias ?? '',
-          status: result.status,
-          elapsed: now() - start,
-          console: consolePreview(result.console),
-        });
-        session.activity.splice(100);
-      }
+      const result = await client.request(session.auth, command);
+      if (command.method !== 'GET' || result.console?.length)
+        receipt(result.status, result.console);
       res.json(result);
     } catch (error) {
-      session.activity.unshift({
-        at: new Date(now()).toISOString(),
-        method: op.method,
-        path: op.path,
-        status: error instanceof ApiError ? error.status : 500,
-        elapsed: now() - start,
-      });
-      session.activity.splice(100);
+      receipt(error instanceof ApiError ? error.status : 500);
       throw error;
     }
   });
-  app.use('/api', (_req, _res, next) => next(new ApiError(404, 'Unknown portal endpoint.')));
+  app.use('/api', () => {
+    throw new ApiError(404, 'Unknown Waypoint endpoint.');
+  });
   app.use(express.static(resolve('dist')));
   app.get('/{*path}', (_req, res) => res.sendFile(resolve('dist/index.html')));
-  app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    if (err instanceof z.ZodError)
-      return res.status(400).json({
-        error: 'Invalid request.',
-        details: err.issues.map((i) => `${i.path.join('.')}: ${i.message}`),
+  app.use(
+    (error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+      const status =
+        error instanceof ApiError
+          ? error.status
+          : error instanceof z.ZodError || error.type === 'entity.parse.failed'
+            ? 400
+            : error.type === 'entity.too.large'
+              ? 413
+              : 500;
+      res.status(status).json({
+        error:
+          error instanceof ApiError
+            ? error.message
+            : status === 400
+              ? 'Invalid request.'
+              : 'The request could not be processed.',
       });
-    res
-      .status(err instanceof ApiError ? err.status : err.type === 'entity.too.large' ? 413 : 500)
-      .json({
-        error: err instanceof ApiError ? err.message : 'The request could not be processed.',
-      });
-  });
+    },
+  );
   return app;
 }

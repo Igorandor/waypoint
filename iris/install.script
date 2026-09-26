@@ -1,7 +1,5 @@
 zn "%SYS"
-set sc=$SYSTEM.OBJ.LoadDir("/opt/relay-iris/Relay","ck",,1)
-if $SYSTEM.Status.IsError(sc) do $SYSTEM.Status.DisplayError(sc) halt 1
-set sc=##class(Relay.Installer).Install()
-if $SYSTEM.Status.IsError(sc) do $SYSTEM.Status.DisplayError(sc) halt 1
-write "Relay extension installed",!
+set $ETRAP="write $ZERROR,! do $SYSTEM.Process.Terminate($JOB,1)" set sc=$SYSTEM.OBJ.LoadDir("/opt/waypoint-iris/Waypoint","ck",,1) if $SYSTEM.Status.IsError(sc) do $SYSTEM.Status.DisplayError(sc) do $SYSTEM.Process.Terminate($JOB,1)
+set $ETRAP="write $ZERROR,! do $SYSTEM.Process.Terminate($JOB,1)" set sc=##class(Waypoint.Installer).Install() if $SYSTEM.Status.IsError(sc) do $SYSTEM.Status.DisplayError(sc) do $SYSTEM.Process.Terminate($JOB,1)
+write "Waypoint extension installed",!
 halt

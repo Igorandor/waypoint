@@ -24,13 +24,13 @@ Credentials remain in memory because HTTP Basic authentication is used against I
 
 ## Extension
 
-`Relay.Rest` requires `%Admin_Operate:USE`, `%DB_IRISSYS:R` for its bundled `%SYS` namespace, and password authentication. These permissions are assigned by an administrator, not by the installer. It does not grant application roles. Embedded Python reads `/proc` on Linux and disk usage for the IRIS manager directory. In a container, host CPU and memory numbers may describe the container host, not cgroup quotas; the UI labels this scope.
+`Waypoint.Rest` requires `%Admin_Operate:USE`, `%DB_IRISSYS:R` for its bundled `%SYS` namespace, and password authentication. These permissions are assigned by an administrator, not by the installer. It does not grant application roles. Embedded Python reads `/proc` on Linux and disk usage for the IRIS manager directory. In a container, host CPU and memory numbers may describe the container host, not cgroup quotas; the UI labels this scope.
 
 Log reads use a fixed allowlist (`messages.log`, `alerts.log`), a maximum 1 MB tail and a maximum 500 lines. No caller-supplied filesystem paths, shell commands or arbitrary SQL are accepted. Missing log files return an explicit empty-source notice. Non-Linux environments retain native API functionality and disk telemetry; Linux-specific metrics are described as unavailable.
 
 ## Operations
 
-Relay's run journal is separate from the in-memory session/activity history. Set a unique `IRIS_INSTANCE_ID` and a writable `RELAY_DATA_DIR`; the Docker stack provides a persistent `relay-runs` volume owned by the non-root Node user. Run exactly one gateway process per journal directory. Sticky sessions alone do not make the file store safe for shared replicas. See [runbook storage and recovery](RUNBOOKS.md) for bounds, archival and interrupted-operation handling.
+Waypoint's run journal is separate from the in-memory session/activity history. Set a unique `IRIS_INSTANCE_ID` and a writable `WAYPOINT_DATA_DIR`; the Docker stack provides a persistent `waypoint-runs` volume owned by the non-root Node user. Run exactly one gateway process per journal directory. Sticky sessions alone do not make the file store safe for shared replicas. See [runbook storage and recovery](RUNBOOKS.md) for bounds, archival and interrupted-operation handling.
 
 Back up the IRIS data volume with an IRIS-supported backup procedure. Replacing the portal container does not change IRIS records. Replacing the IRIS image may require a supported IRIS upgrade path; pin and test upgrades. `docker compose down` keeps the volume. Removing the volume destroys the demonstration instance's data.
 

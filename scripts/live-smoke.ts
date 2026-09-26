@@ -19,7 +19,7 @@ const client = new IrisClient(process.env.IRIS_URL ?? 'http://127.0.0.1:52790');
 const auth = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
 
 const suffix = Date.now().toString(36),
-  name = 'RelayTest' + suffix;
+  name = 'WaypointTest' + suffix;
 
 let failures = 0;
 
@@ -52,7 +52,7 @@ const workflows = [
   {
     path: '/v2/security/resource',
     name,
-    body: { Description: 'Temporary Relay integration test', PublicPermission: 'R' },
+    body: { Description: 'Temporary Waypoint integration test', PublicPermission: 'R' },
     edit: { Description: 'Updated test resource' },
   },
 
@@ -60,7 +60,7 @@ const workflows = [
     path: '/v2/security/role',
     name,
     body: {
-      Description: 'Temporary Relay integration test',
+      Description: 'Temporary Waypoint integration test',
       Resources: [{ Name: '%DB_USER', Permissions: 'R' }],
       GrantedRoles: [],
     },
@@ -69,12 +69,12 @@ const workflows = [
 
   {
     path: '/v2/web-app',
-    name: '/relay-test-' + suffix,
+    name: '/waypoint-test-' + suffix,
     body: {
       NameSpace: 'USER',
       Enabled: true,
       AutheEnabled: 32,
-      DispatchClass: 'Relay.Rest',
+      DispatchClass: 'Waypoint.Rest',
       Description: 'Temporary integration test',
     },
     edit: { Description: 'Updated test app' },
@@ -91,7 +91,7 @@ const workflows = [
     path: '/v2/device',
     name,
     body: {
-      PhysicalDevice: '/tmp/relay-test.txt',
+      PhysicalDevice: '/tmp/waypoint-test.txt',
       Type: 'OTH',
       SubType: 'M/UX',
       Description: 'Temporary test device',

@@ -10,6 +10,7 @@ import {
 import { RunStore } from './run-store.js';
 import { IrisClient, ApiError, type Operation } from './upstream.js';
 import { redact } from '../shared/redaction.js';
+import { buildObservationPlan, defaultObservation } from '../shared/observation-plan.js';
 
 type Actor = { owner: string; auth: string };
 export class RunEngine {
@@ -51,11 +52,11 @@ export class RunEngine {
       !canonical.startsWith('/') ||
       canonical === '/' ||
       canonical === '/api' ||
-      /^\/(api\/(admin|relay)|csp\/sys)(\/|$)/.test(canonical)
+      /^\/(api\/(admin|waypoint|relay)|csp\/sys)(\/|$)/.test(canonical)
     )
       throw new ApiError(
         400,
-        'Choose a non-management application. Relay protects its own API and the native administration routes.',
+        'Choose a non-management application. Waypoint protects its own API and the native administration routes.',
       );
   }
   private async targetLocked<T>(run: Run, action: () => Promise<T>): Promise<T> {
@@ -90,9 +91,28 @@ export class RunEngine {
       return run;
     });
   }
-  async create(actor: Actor, template: TemplateId, target: string, confirmation: string) {
+  async create(
+    actor: Actor,
+    template: TemplateId,
+    target: string,
+    confirmation: string,
+    observation?: { sources?: unknown; title?: string },
+  ) {
     const definition = templates[template];
     if (!definition) throw new ApiError(400, 'Unknown runbook template.');
+    if (observation && template !== 'observe')
+      throw new ApiError(400, 'Custom sources are only available for observation plans.');
+    let plan = definition.steps;
+    if (template === 'observe') {
+      try {
+        plan = buildObservationPlan(observation?.sources ?? defaultObservation);
+      } catch {
+        throw new ApiError(400, 'Select one to eight different observation sources.');
+      }
+    }
+    const customTitle = observation?.title?.trim();
+    if (customTitle && customTitle.length > 80)
+      throw new ApiError(400, 'Observation titles are limited to 80 characters.');
     if (definition.target !== 'none' && confirmation !== target)
       throw new ApiError(400, 'Type the exact target to confirm this plan.');
     if (definition.target === 'app') this.requireNonManagementApplication(target);
@@ -112,12 +132,12 @@ export class RunEngine {
         instance: this.instance,
         template,
         target: definition.target === 'none' ? 'Instance' : target,
-        title: definition.title,
+        title: customTitle || definition.title,
         createdAt: time,
         updatedAt: time,
         status: 'active',
         needsRestore: false,
-        steps: definition.steps.map((s) => ({ ...s, status: 'pending', attempts: 0 })),
+        steps: plan.map((s) => ({ ...s, status: 'pending', attempts: 0 })),
         events: [],
       };
       this.event(run, 'created', 'Plan confirmed. No IRIS configuration has been changed.');
@@ -249,6 +269,18 @@ export class RunEngine {
           }
           case 'health':
             evidence = await this.call(actor, '/v2/monitor/dashboard/main');
+            break;
+          case 'processes':
+            evidence = await this.call(actor, '/v2/processes', { maxRows: '100' });
+            break;
+          case 'task-inventory':
+            evidence = await this.call(actor, '/v2/tasks', { maxRows: '100' });
+            break;
+          case 'application-inventory':
+            evidence = await this.call(actor, '/v2/web-apps', { maxRows: '100' });
+            break;
+          case 'journal-inventory':
+            evidence = await this.call(actor, '/v2/journal/files', { maxRows: '100' });
             break;
           case 'host':
             evidence = await this.call(actor, '/extension/telemetry');

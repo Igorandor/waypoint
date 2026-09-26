@@ -10,8 +10,8 @@ const call = (path: string, method: Operation['method'] = 'GET') =>
   client.request(auth, { path, method, query: path === '/v2/processes' ? {} : { id } });
 const worker = (await call('/v2/processes')).data.find((p: any) => String(p.Pid) === id);
 assert.ok(
-  worker && String(worker.Routine).includes('Relay.DemoTask'),
-  'Refusing to control anything except the explicitly started Relay test worker.',
+  worker && String(worker.Routine).includes('Waypoint.DemoTask'),
+  'Refusing to control anything except the explicitly started Waypoint test worker.',
 );
 try {
   assert.ok(worker.CanBeSuspended && worker.CanBeTerminated);

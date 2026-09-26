@@ -104,10 +104,10 @@ try {
   await adminCall('/v2/security/user', 'PUT', { name }, { Roles: [] });
   const reportDenied = await request('runs', undefined, operator);
   assert.ok([401, 403].includes(reportDenied.status), JSON.stringify(reportDenied.data));
-  console.log('PASS revoked operating privileges block stored Relay reports');
+  console.log('PASS revoked operating privileges block stored Waypoint reports');
   const revoked = await call(operator, '/extension/telemetry');
   assert.ok([401, 403].includes(revoked.status), JSON.stringify(revoked.data));
-  const direct = await fetch(new URL('/api/relay/telemetry', native), {
+  const direct = await fetch(new URL('/api/waypoint/telemetry', native), {
     headers: {
       Authorization: 'Basic ' + Buffer.from(name + ':' + temporaryPassword).toString('base64'),
     },

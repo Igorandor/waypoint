@@ -40,8 +40,8 @@ const native = async (
   body?: Record<string, unknown>,
 ) => (await client.request(auth, { path, method, query, body })).data;
 const suffix = Date.now().toString(36),
-  app = '/relay-window-' + suffix,
-  taskName = 'RelayWindow' + suffix;
+  app = '/waypoint-window-' + suffix,
+  taskName = 'WaypointWindow' + suffix;
 const cleanup: Array<() => Promise<unknown>> = [];
 let pending: Run | undefined;
 try {
@@ -58,7 +58,7 @@ try {
       NameSpace: 'USER',
       Enabled: true,
       AutheEnabled: 32,
-      DispatchClass: 'Relay.Rest',
+      DispatchClass: 'Waypoint.Rest',
       Description: 'Disposable runbook test',
     },
   );
@@ -89,7 +89,7 @@ try {
     {
       ...taskDefaults(username),
       Name: taskName,
-      TaskClass: 'Relay.DemoTask',
+      TaskClass: 'Waypoint.DemoTask',
       NameSpace: '%SYS',
       TimePeriod: 'Daily',
       TimePeriodEvery: '1',

@@ -23,17 +23,21 @@ const labels: Record<string, string> = {
   logs: 'Logs',
   explorer: 'API',
 };
-export function RelayShell(props: Props) {
+export function WaypointShell(props: Props) {
   return (
     <>
-      <header className="relay-commandbar">
-        <a className="relay-wordmark" href="#runbooks" onClick={() => props.navigate('runbooks')}>
-          relay<span>/ IRIS</span>
+      <header className="waypoint-commandbar">
+        <a
+          className="waypoint-wordmark"
+          href="#runbooks"
+          onClick={() => props.navigate('runbooks')}
+        >
+          waypoint<span>/ IRIS</span>
         </a>
-        <span className="relay-location">
+        <span className="waypoint-location">
           {props.navigation.find((n) => n.id === props.page)?.label ?? 'Status'}
         </span>
-        <div className="relay-command-actions">
+        <div className="waypoint-command-actions">
           <button onClick={props.onCommand} aria-label="Go to workspace">
             <Search size={16} />
             <span>Find a tool</span>
@@ -51,7 +55,7 @@ export function RelayShell(props: Props) {
           </button>
         </div>
       </header>
-      <nav className="relay-toolrail" aria-label="Main navigation">
+      <nav className="waypoint-toolrail" aria-label="Main navigation">
         {props.navigation.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -65,7 +69,7 @@ export function RelayShell(props: Props) {
           </button>
         ))}
       </nav>
-      <main className="relay-console" id="main-content" tabIndex={-1}>
+      <main className="waypoint-console" id="main-content" tabIndex={-1}>
         {props.children}
       </main>
     </>

@@ -10,12 +10,36 @@ import { IrisClient } from '../server/upstream';
 import { createApp } from '../server/app';
 import supertest from 'supertest';
 const actor = { owner: 'operator', auth: 'Basic test' };
+test('custom observation plan executes only selected reads and retains its saved order', async (t) => {
+  const { engine, state } = await fixture(t);
+  const run = await engine.create(actor, 'observe', '', '', {
+    sources: ['processes', 'journal-inventory', 'task-inventory', 'application-inventory'],
+    title: 'Pre-deployment check',
+  });
+  assert.equal(run.title, 'Pre-deployment check');
+  assert.equal(state.reads, 0);
+  for (let index = 0; index < 4; index++) {
+    const current = await engine.next(actor, run.id, '');
+    assert.equal(current.steps[index].status, 'done');
+    assert.equal(state.reads, index + 1);
+  }
+  assert.equal(state.writes, 0);
+  assert.equal((await engine.get(actor, run.id)).status, 'completed');
+  await assert.rejects(
+    () => engine.create(actor, 'application-window', '/sample', '/sample', { sources: ['info'] }),
+    /only available/,
+  );
+  await assert.rejects(
+    () => engine.create(actor, 'observe', '', '', { sources: ['disable-app'] }),
+    /different observation/,
+  );
+});
 async function fixture(t: TestContext) {
-  const directory = await mkdtemp(join(tmpdir(), 'relay-tests-'));
+  const directory = await mkdtemp(join(tmpdir(), 'waypoint-tests-'));
   t.after(async () => {
     assert.ok(
-      resolve(directory).startsWith(resolve(tmpdir()) + '\\relay-tests-') ||
-        resolve(directory).startsWith(resolve(tmpdir()) + '/relay-tests-'),
+      resolve(directory).startsWith(resolve(tmpdir()) + '\\waypoint-tests-') ||
+        resolve(directory).startsWith(resolve(tmpdir()) + '/waypoint-tests-'),
     );
     await rm(directory, { recursive: true, force: true });
   });
@@ -70,7 +94,7 @@ test('creating a plan never changes IRIS; management routes are protected', asyn
     '/API//',
     '/api/admin',
     '/API/ADMIN//',
-    '/api/relay/',
+    '/api/waypoint/',
     '/CSP/SYS//',
   ])
     await assert.rejects(

@@ -24,7 +24,7 @@ const call = (
 ) => client.request(auth, { path, method, query, body });
 
 const suffix = Date.now().toString(36),
-  name = 'RelayWorkflow' + suffix;
+  name = 'WaypointWorkflow' + suffix;
 
 const cleanup: Array<() => Promise<unknown>> = [];
 
@@ -88,7 +88,7 @@ try {
     {
       ...taskDefaults(user),
       Name: name,
-      TaskClass: 'Relay.DemoTask',
+      TaskClass: 'Waypoint.DemoTask',
       NameSpace: '%SYS',
       TimePeriod: 'Daily',
       TimePeriodEvery: '1',

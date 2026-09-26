@@ -4,6 +4,11 @@ import { templates, type TemplateId, type Run } from '../../../shared/runbook';
 import { useData } from '../../hooks';
 import { request } from '../../api';
 import { Badge, ErrorBox, Modal } from '../../components/ui';
+import {
+  observationSteps,
+  defaultObservation,
+  type ObservationKind,
+} from '../../../shared/observation-plan';
 
 export function CreateRun({
   template,
@@ -15,6 +20,12 @@ export function CreateRun({
   onCreated: (run: Run) => void;
 }) {
   const definition = templates[template];
+  const [sources, setSources] = useState<ObservationKind[]>([...defaultObservation]);
+  const [planTitle, setPlanTitle] = useState('');
+  const plan =
+    template === 'observe'
+      ? sources.map((kind) => ({ kind, ...observationSteps[kind] }))
+      : definition.steps;
   const data = useData<any[]>(
     definition.target === 'app' ? '/v2/web-apps' : definition.target === 'task' ? '/v2/tasks' : '',
   );
@@ -27,13 +38,20 @@ export function CreateRun({
       definition.target !== 'app' ||
       (row.Name !== '/' &&
         row.Name !== '/api' &&
-        !/^\/(api\/(admin|relay)|csp\/sys)(\/|$)/i.test(row.Name)),
+        !/^\/(api\/(admin|waypoint|relay)|csp\/sys)(\/|$)/i.test(row.Name)),
   );
   async function create() {
     setBusy(true);
     setError('');
     try {
-      onCreated(await request('runs', { template, target, confirmation }));
+      onCreated(
+        await request('runs', {
+          template,
+          target,
+          confirmation,
+          ...(template === 'observe' ? { observation: { sources, title: planTitle } } : {}),
+        }),
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -61,6 +79,40 @@ export function CreateRun({
           )}
         </Badge>
         <p>{definition.description}</p>
+        {template === 'observe' && (
+          <fieldset>
+            <legend>Build your observation plan</legend>
+            <label className="field">
+              Plan title (optional)
+              <input
+                maxLength={80}
+                value={planTitle}
+                onChange={(e) => setPlanTitle(e.target.value)}
+                placeholder="Before the weekend deployment"
+              />
+            </label>
+            <p>
+              Choose up to eight fixed read sources. They run one at a time in the order selected,
+              only when you continue.
+            </p>
+            {(Object.keys(observationSteps) as ObservationKind[]).map((kind) => (
+              <label className="observation-choice" key={kind}>
+                <input
+                  type="checkbox"
+                  checked={sources.includes(kind)}
+                  onChange={(e) =>
+                    setSources(
+                      e.target.checked
+                        ? [...sources, kind]
+                        : sources.filter((source) => source !== kind),
+                    )
+                  }
+                />
+                {observationSteps[kind].title}
+              </label>
+            ))}
+          </fieldset>
+        )}
         {definition.target !== 'none' && (
           <>
             <label className="field">
@@ -92,7 +144,7 @@ export function CreateRun({
           </>
         )}
         <ol className="plan-preview">
-          {definition.steps.map((s, i) => (
+          {plan.map((s, i) => (
             <li key={s.kind}>
               <span>{i + 1}</span>
               <div>
@@ -115,7 +167,8 @@ export function CreateRun({
         )}
         <div className="notice">
           Creating a run only saves this plan. Each step is executed separately after you choose to
-          continue. The original state is captured by the first step.
+          continue.{' '}
+          {definition.target !== 'none' && 'The original state is captured by the first step.'}
         </div>
         {error && <ErrorBox error={error} />}
       </div>
@@ -125,7 +178,11 @@ export function CreateRun({
         </button>
         <button
           className="primary"
-          disabled={busy || (definition.target !== 'none' && (!target || confirmation !== target))}
+          disabled={
+            busy ||
+            !plan.length ||
+            (definition.target !== 'none' && (!target || confirmation !== target))
+          }
           onClick={() => void create()}
         >
           {busy ? 'Saving plan…' : 'Create run'}

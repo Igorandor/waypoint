@@ -1,88 +1,42 @@
 # Verification record
 
-Verified September 26, 2026 against a real, disposable InterSystems IRIS Community **2026.2 build 221U** instance, using the image digest pinned in `iris/Dockerfile`.
+Verified September 26, 2026 on disposable IRIS Community 2026.2 build 221U. This record describes the current independent implementation; earlier review documents describe earlier revisions.
 
-## Reproducible checks
+| Check                    | Current result                                                                                                          |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| npm run check            | TypeScript, production frontend/server bundles and 97 tests pass.                                                       |
+| npm audit                | Zero reported vulnerable dependencies at verification time; this does not audit the OS or IRIS image.                   |
+| Clean native image build | The configure and install scripts compile the current extension successfully.                                           |
+| test:authorization       | Limited native account, rejected escalation, database-read revocation and existing-session revocation pass.             |
+| test:install             | Deployed static files, CSP, login, CSRF, info, native reads, extension and logout pass.                                 |
+| test:live                | Native list/detail coverage, disposable CRUD and observation sources pass.                                              |
+| test:workflows           | Users, wallet metadata isolation, complete task creation/control, OAuth configuration/credentials and async audit pass. |
+| test:x509                | Disposable certificate creation/import/update/read/removal passes.                                                      |
+| test:process             | Explicit demo worker suspend/resume/terminate passes; disappearance checked.                                            |
+| test:runbooks            | Observation, application/task windows, state verification, restoration and ownership isolation pass.                    |
 
-| Check                                                        | Result                                                                                                                                                               |
-| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run check`                                              | TypeScript and production bundles pass; 96 security, API-contract and run-engine tests pass.                                                                         |
-| `npm audit`                                                  | No reported vulnerabilities in the installed dependency tree at verification time.                                                                                   |
-| Fresh `docker compose up -d --build` with a new named volume | Both services become healthy; login and real gateway requests pass.                                                                                                  |
-| `npm run test:install`                                       | Production static files, CSP, session, CSRF, info, applications, tasks, telemetry, logs and logout pass.                                                             |
-| `npm run test:live`                                          | Native lists/details, resource/role/web-app/wallet-collection/device/TLS CRUD and observability pass.                                                                |
-| `npm run test:workflows`                                     | User creation and disablement; wallet secret metadata isolation; task create/suspend/resume/run; OAuth server/client/credentials; asynchronous audit retrieval pass. |
-| `npm run test:x509`                                          | Disposable self-signed certificate import, metadata update, read and cleanup pass.                                                                                   |
-| `npm run test:process`                                       | Explicit demo worker suspension, resumption and termination pass; disappearance verified in the process list.                                                        |
+The replacement kept security and API regression contracts. Five tests for the removed Harbor-style presentation helper were retired with that helper. Four new command tests cover selective conflicts, detached defaults, target contracts and complete task payloads. Lower totals than an earlier revision do not indicate that failing security tests were deleted.
 
-The same main live suites passed against both a directly started container and the fresh Compose installation. Records are created with unique test names and cleaned up in `finally` blocks. No existing business data is required.
+## Browser verification
 
-The worker test refuses to control a process unless its routine identifies `Relay.DemoTask`. To start it in the bundled stack:
+Current production builds were inspected at desktop and 390 × 844 widths. Separate localhost fixtures exercised a task update end to end: the browser sent only Description, preserved an externally changed SuspendOnError value, and refused a second write after an external Description conflict. A failed logout kept the authenticated view and showed the error. Fixture writes never reached IRIS.
 
-```sh
-docker compose exec -T iris iris session IRIS < iris/start-test-worker.script
-# Copy RELAY_TEST_PID from the output; then, within two minutes:
-IRIS_TEST_PID=1234 npm run test:process
-```
+The real native suites and these isolated UI checks test different boundaries. They do not certify every combination of administrator configuration or every browser. Current screenshots are under docs/images; old screenshots remain historical illustrations where named accordingly.
 
-Set `IRIS_TEST_USER`, `IRIS_TEST_PASSWORD` and `IRIS_URL` first. For X.509 testing, create a disposable PEM certificate using OpenSSL inside the IRIS container and set `IRIS_TEST_CERT` to its path **inside IRIS**; see `scripts/live-x509.ts` for the exact environment contract.
+## Reproduction
 
-For the installed gateway test set `PORTAL_URL` to the reachable portal URL and `PORTAL_ORIGIN` to the exact `PUBLIC_ORIGIN`. This distinction is useful on machines where `localhost` resolves to IPv6 but Docker ports are published on IPv4.
+Run npm ci and npm run check in this repository. Native scripts require a disposable local instance and IRIS_TEST_USER, IRIS_TEST_PASSWORD and IRIS_URL. On the reviewed host use http://127.0.0.1:52790 for IRIS and PORTAL_URL=http://127.0.0.1:3300, PORTAL_ORIGIN=http://localhost:3300 for the gateway. The origin must match PUBLIC_ORIGIN even if transport uses a different loopback address.
 
-The additional `npm run test:runbooks` suite verifies the full gateway flow: persisted observation, application disable/checkpoint/restore, task suspension/early restoration and task-specific history. Temporary native objects are cleaned up; run reports remain as test evidence. Engine tests also simulate a lost write response, restart recovery and concurrent clicks.
+Run test:install, test:authorization, test:live, test:workflows and test:runbooks. For X.509 set IRIS_TEST_CERT to a disposable PEM path inside the container. For process control run iris/start-test-worker.script and pass the printed PID as IRIS_TEST_PID within two minutes. The suite refuses any process whose routine does not identify Waypoint.DemoTask.
 
-## Browser review
+Installation failure paths were tested in separate native sessions: both a failing status and an unexpected runtime exception exited with code 1 before the subsequent success marker. Error traps are set on the same direct-mode command as the protected operation.
 
-The compact tool rail and all native tool routes were exercised in the browser. A new observation run completed all four steps through the runbook picker and step inspector; selecting a recorded host-capacity step displayed the real response. The API suite also passed application disable/checkpoint/restore and task suspend/early-restore flows. The queue and step inspector were reviewed at 390 px width.
+## Limits and retained evidence
 
-The interface copy and layout were refined in a subsequent review: direct screen titles, compact sign-in forms, fewer repeated labels and smaller operation cards. The updated production interfaces were checked at desktop and mobile widths, including keyboard navigation and theme switching.
+IRIS for Health and a complete external identity-provider authorization flow were not tested. Host observations are not container quotas. The earlier volume-replacement persistence checks remain historical evidence; the current native image build did not delete or replace the live data volumes. No public GitHub/Open Exchange publication or contest submission was performed.
 
-An observation report created before a real Compose portal-container replacement was retrieved afterward with its original ID, timestamps, completed steps and event journal intact. The run volume therefore survived the tested replacement, independently of the unit tests that simulate engine restart.
+See PROVENANCE.md, CONTEST_SECURITY_REVIEW.md and DEPLOYMENT.md for origins, boundaries and deployment prerequisites. Test resources are temporary and cleaned up by the native scripts.
 
-The actual browser was used against the real server, including the production Compose installation. Checks covered sign-in, navigation, loading and loaded states, task details, native process/database data, host telemetry, system logs, asynchronous security audit, and an application editor's separate change-review step. Keyboard activation and Escape dismissal were checked. A 390 × 844 viewport was used to review the responsive layout and dark theme. This was an interactive review, not a claim of automated WCAG certification.
+## Final independent release verification
 
-The Operations desk was also exercised through creation and all four steps of a real observation run. Recorded results were visible in the browser.
-
-## Limits of the evidence
-
-- The full regression baseline is 2026.2; Relay runbooks were not certified against the 2026.3 preview. IRIS for Health was not separately tested.
-- OAuth configuration and credential updates were verified. A complete authorization-code flow against an external identity provider requires that provider's registration and is not included in the offline tests.
-- X.509 testing uses a disposable certificate, not a production trust chain or hardware security module.
-- CPU and memory reflect the Linux host visible to IRIS, not cgroup limits. Other operating systems provide reduced telemetry.
-- The browser list is intentionally bounded to 250 records. Filtered exports contain the loaded view, not a full-instance backup.
-- Dashboard samples can become stale when the IRIS system monitor stops. Relay labels this state and suppresses sampled process/performance figures until it updates again.
-- Edit conflict detection is a read-before-write check; the native API does not provide an atomic ETag condition here.
-- Logs may contain application data despite best-effort masking. Review exports before sharing them.
-- Runbook records persist in a dedicated volume and are account-scoped, but are not immutable audit records. Session state and the last 100 general portal activity records live only in process memory. They are not a durable security audit; use native IRIS audit for that purpose.
-
-## Structured-data follow-up, September 26
-
-The final source passes TypeScript, production bundling and 80 tests. The rebuilt Compose stack passed installed-gateway, native CRUD/observability and extended workflow suites. The durable runbook suite also passed.
-
-Browser checks covered the structured REST response, nested disclosures and the distinct product workspace. Shared components were exercised through Harbor's native MatchRoles array: adding an object and nested TargetRoles array, editing a value, closing/reopening without loss, reviewing the result and removing an entry. The draft was cancelled without applying permissions. Relay checks covered real stored host, health, message and scheduling-state evidence, unit switching, classification, empty filters and keyboard activation. Atlas checks covered an empty baseline comparison and an added disposable resource shown as field differences; the resource was removed afterward.
-
-The responsive checks used a 390 × 844 viewport. They found an absolutely positioned screen-reader table label escaping its horizontal scroll area; the scroll container now provides its positioning context. Wide tables keep their own horizontal scroll. The inspected browser error/warning logs were empty. These checks are interactive evidence, not an accessibility certification.
-
-Native resource creation rejected missing and empty PublicPermission values in this review, and the form retained the error and draft for correction. A populated disposable resource succeeded. This is not evidence that every native schema constraint is validated before submission. Presentation choices and limits are described in [DATA_VIEWS.md](DATA_VIEWS.md).
-
-## Subsequent security follow-up
-
-Six additional regressions cover asynchronous diagnostic masking, identity preservation, retained history bounds, escaped/multibyte output, single-pass literal replacement and rejection of excessive credential fields before a write. All 86 tests and production builds pass. See [SECURITY_REVIEW.md](SECURITY_REVIEW.md) for reproductions, scope and limitations.
-
-The security follow-up was deployed to the local Compose portal. Installed-gateway, native smoke and extended workflows passed after rebuilding; Atlas live access analysis and Relay runbooks also passed. No container OS vulnerability scan or IRIS product certification is implied.
-
-## Second security recheck
-
-The subsequent recheck fixed duplicate unmasked fallback consoles and rejected malformed native login identities/API versions before session creation. All 89 tests, TypeScript checks and production builds pass. The rebuilt local portals passed installation, native smoke and extended workflow suites, plus Atlas access analysis and Relay runbooks. Dependency audits report zero known vulnerabilities. See [SECURITY_RECHECK.md](SECURITY_RECHECK.md) for reproduction conditions and limitations.
-
-## Third requested review
-
-The next review corrected false success for nonempty native error lists without messages and added target locking to Relay reconciliation. All 93 tests, TypeScript and production builds pass. Rebuilt local portals again passed installation, native smoke and extended workflows, plus Atlas access analysis and Relay runbooks. Dependency audits reported zero known vulnerabilities. Deterministic failing-before/passing-after fixtures and the scope of the locking guarantee are documented in [SECURITY_RECHECK.md](SECURITY_RECHECK.md).
-
-## Expanded review
-
-The final build passes 95 tests. The expanded review added malformed-capture and graph cases, upstream protocol checks, native task-edit preservation checks, and browser checks of request sequencing and sign-out failures. All primary native suites, Atlas access analysis, Relay runbooks, X.509 and demo process-control suites passed; final installed-gateway checks passed after the last rebuild. See [DEEP_REVIEW.md](DEEP_REVIEW.md) for fixes, evidence and the stopping criterion.
-
-## Contest and authorization review, September 26
-
-The current build passes 96 tests. The rebuilt gateway passed the new `npm run test:authorization` suite and `test:install` against the bundled IRIS Community instance. The new suite verifies restricted access, refusal of security-privilege escalation, database-read denial and revocation in an existing session. See [review details](CONTEST_SECURITY_REVIEW.md). Earlier specialized live-suite results above remain historical evidence; they were not all repeated in this round.
+September 27 addition: the product is now Waypoint, with its own namespace, package and /api/waypoint extension. The complete set has 97 tests, including configurable observation validation and engine execution without native writes. A real eight-source plan completed 8/8 steps, and its stored report reopened successfully. Earlier reports survived the rename. Native installation, authorization, smoke, workflows and runbooks were rerun under the new name; the Waypoint.DemoTask worker also passed suspend/resume/terminate. The renamed native image built successfully. Desktop and 390 × 844 layouts were inspected. The attempted browser download-event automation timed out and is not claimed as a successful on-disk export.

@@ -40,7 +40,7 @@ export function RunDetail({
           <h2>{run.title}</h2>
           <code>{run.target}</code>
         </div>
-        <button onClick={() => download('relay-run-' + run.id + '.json', run)}>
+        <button onClick={() => download('waypoint-run-' + run.id + '.json', run)}>
           <Download size={15} /> Export report
         </button>
       </div>
@@ -239,7 +239,7 @@ export function RunDetail({
           <div className="modal-body">
             <p>
               This skips the remaining maintenance checkpoint and restores the boolean state
-              recorded at the start. Other changes made outside Relay are not undone.
+              recorded at the start. Other changes made outside Waypoint are not undone.
             </p>
             <p>
               Original {run.template === 'application-window' ? 'enabled' : 'suspended'} state:{' '}

@@ -1,47 +1,47 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useReducer } from 'react';
 import { iris } from './api';
 export function useData<T = any>(path: string, query: Record<string, string> = {}, interval = 0) {
-  const [data, setData] = useState<T>(),
-    [error, setError] = useState(''),
-    [loading, setLoading] = useState(true),
-    [at, setAt] = useState<Date>(),
-    [version, setVersion] = useState(0);
-  const sequence = useRef(0),
-    key = JSON.stringify(query);
+  const [revision, refresh] = useReducer((n) => n + 1, 0);
+  const [state, merge] = useReducer(
+    (s: { data?: T; error: string; loading: boolean; at?: Date }, p: Partial<typeof s>) => ({
+      ...s,
+      ...p,
+    }),
+    { error: '', loading: !!path },
+  );
+  const serialized = JSON.stringify(query);
   useEffect(() => {
-    if (!path) {
-      setLoading(false);
-      return;
-    }
-    let live = true;
-    const load = async () => {
-      const id = ++sequence.current;
-      setLoading(true);
+    let canceled = false,
+      timer: number | undefined;
+    merge({ data: undefined, error: '', loading: !!path, at: undefined });
+    const sample = async () => {
+      if (canceled) return;
+      merge({ loading: true });
       try {
-        const result = await iris<T>(path, JSON.parse(key));
-        if (live && id === sequence.current) {
-          setData(result.data);
-          setError('');
-          setAt(new Date());
-        }
-      } catch (e) {
-        if (live && id === sequence.current) setError((e as Error).message);
+        const result = await iris<T>(path, JSON.parse(serialized));
+        if (!canceled) merge({ data: result.data, error: '', at: new Date() });
+      } catch (error) {
+        if (!canceled) merge({ error: (error as Error).message });
       } finally {
-        if (live && id === sequence.current) setLoading(false);
+        if (!canceled) {
+          merge({ loading: false });
+          if (interval)
+            timer = window.setTimeout(() => {
+              visibleSample();
+            }, interval);
+        }
       }
     };
-    setData(undefined);
-    void load();
-    const timer = interval
-      ? setInterval(() => {
-          if (!document.hidden) void load();
-        }, interval)
-      : undefined;
+    function visibleSample() {
+      if (canceled) return;
+      if (document.hidden) timer = window.setTimeout(visibleSample, interval);
+      else void sample();
+    }
+    if (path) void sample();
     return () => {
-      live = false;
-      if (timer) clearInterval(timer);
+      canceled = true;
+      window.clearTimeout(timer);
     };
-  }, [path, key, version, interval]);
-  const refresh = useCallback(() => setVersion((v) => v + 1), []);
-  return { data, error, loading, at, refresh };
+  }, [path, serialized, interval, revision]);
+  return { ...state, refresh };
 }

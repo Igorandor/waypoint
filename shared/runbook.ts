@@ -11,7 +11,11 @@ export type StepKind =
   | 'suspend-task'
   | 'restore-task'
   | 'task-history'
-  | 'checkpoint';
+  | 'checkpoint'
+  | 'processes'
+  | 'task-inventory'
+  | 'application-inventory'
+  | 'journal-inventory';
 export type StepStatus = 'pending' | 'running' | 'done' | 'failed' | 'uncertain' | 'skipped';
 export type RunStep = {
   kind: StepKind;
@@ -104,7 +108,7 @@ export const templates: Record<
         kind: 'checkpoint',
         title: 'Perform and review the maintenance',
         description:
-          'Complete your external work and record a note before restoring access. Relay does not run arbitrary shell commands.',
+          'Complete your external work and record a note before restoring access. Waypoint does not run arbitrary shell commands.',
       },
       {
         kind: 'restore-app',

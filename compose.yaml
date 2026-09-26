@@ -1,4 +1,4 @@
-name: iris-relay
+name: iris-waypoint
 services:
   iris:
     build:
@@ -19,19 +19,20 @@ services:
     build: .
     environment:
       IRIS_URL: http://iris:52773
-      IRIS_INSTANCE_ID: ${RELAY_INSTANCE_ID:-relay-local}
-      RELAY_DATA_DIR: /app/data
+      IRIS_INSTANCE_ID: ${WAYPOINT_INSTANCE_ID:-waypoint-local}
+      WAYPOINT_DATA_DIR: /app/data
       HOST: 0.0.0.0
       PORT: 3100
-      PUBLIC_ORIGIN: ${RELAY_ORIGIN:-http://localhost:3300}
+      PUBLIC_ORIGIN: ${WAYPOINT_ORIGIN:-http://localhost:3300}
       COOKIE_SECURE: 'false'
     ports:
-      - '127.0.0.1:${RELAY_PORT:-3300}:3100'
+      - '127.0.0.1:${WAYPOINT_PORT:-3300}:3100'
     volumes:
-      - relay-runs:/app/data
+      - waypoint-runs:/app/data
     depends_on:
       iris:
         condition: service_healthy
 volumes:
   iris-data:
-  relay-runs:
+  waypoint-runs:
+    name: ${WAYPOINT_RUN_VOLUME:-iris-waypoint_waypoint-runs}

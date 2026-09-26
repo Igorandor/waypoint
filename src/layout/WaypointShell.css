@@ -1,4 +1,4 @@
-/* Relay is a queue and step inspector. The tool rail stays separate from operation state. */
+/* Waypoint is a queue and step inspector. The tool rail stays separate from operation state. */
 :root {
   background: var(--bg);
   color: var(--text);
@@ -10,11 +10,11 @@
   --accent: #985016;
   --tint: #f6ecdf;
 }
-.relay-app {
+.waypoint-app {
   display: block;
   font-family: 'Segoe UI', Arial, sans-serif;
 }
-.relay-commandbar {
+.waypoint-commandbar {
   height: 58px;
   display: flex;
   align-items: center;
@@ -27,46 +27,46 @@
   z-index: 30;
   border-bottom: 1px solid #40515d;
 }
-.relay-wordmark {
+.waypoint-wordmark {
   font:
     700 26px 'Cascadia Code',
     Consolas,
     monospace;
   letter-spacing: -1.5px;
 }
-.relay-wordmark span {
+.waypoint-wordmark span {
   font-size: 12px;
   letter-spacing: 0;
   font-weight: 400;
   color: #9dafbd;
   margin-left: 14px;
 }
-.relay-location {
+.waypoint-location {
   font-size: 12px;
   color: #bac8d1;
   border-left: 1px solid #52616c;
   padding-left: 22px;
 }
-.relay-command-actions {
+.waypoint-command-actions {
   margin-left: auto;
   display: flex;
   gap: 10px;
 }
-.relay-command-actions button {
+.waypoint-command-actions button {
   border: 1px solid #3a4b57;
   border-radius: 3px;
   background: transparent;
   color: #e8eff3;
 }
-.relay-command-actions button:hover {
+.waypoint-command-actions button:hover {
   background: #30414c;
 }
-.relay-command-actions kbd {
+.waypoint-command-actions kbd {
   border: 0;
   background: transparent;
   color: #a3b5c2;
 }
-.relay-toolrail {
+.waypoint-toolrail {
   position: fixed;
   left: 0;
   top: 58px;
@@ -80,7 +80,7 @@
   overflow-y: auto;
   z-index: 25;
 }
-.relay-toolrail button {
+.waypoint-toolrail button {
   flex-shrink: 0;
   flex-direction: column;
   gap: 5px;
@@ -92,50 +92,50 @@
   background: transparent;
   color: #b9c8d1;
 }
-.relay-toolrail button:hover {
+.waypoint-toolrail button:hover {
   background: #304752;
 }
-.relay-toolrail button[aria-current] {
+.waypoint-toolrail button[aria-current] {
   color: #ffe0b4;
   border-color: #775936;
   background: #3c3c35;
 }
-.relay-console {
+.waypoint-console {
   margin: 0 0 0 82px;
   width: calc(100% - 82px);
   max-width: none;
   padding: 22px 26px 36px;
   min-height: calc(100vh - 58px);
 }
-.relay-console h1,
-.relay-console h2,
-.relay-console h3 {
+.waypoint-console h1,
+.waypoint-console h2,
+.waypoint-console h3 {
   font-family: 'Segoe UI', Arial, sans-serif;
   letter-spacing: 0;
 }
-.relay-console h1 {
+.waypoint-console h1 {
   font-size: 23px;
 }
-.relay-console .page-header {
+.waypoint-console .page-header {
   align-items: center;
   margin-bottom: 18px;
 }
-.relay-console .page-header p {
+.waypoint-console .page-header p {
   margin-top: 4px;
   font-size: 12px;
 }
-.relay-console .panel,
-.relay-console button,
-.relay-console input,
-.relay-console select,
-.relay-console textarea {
+.waypoint-console .panel,
+.waypoint-console button,
+.waypoint-console input,
+.waypoint-console select,
+.waypoint-console textarea {
   border-radius: 3px;
 }
-.relay-console .badge {
+.waypoint-console .badge {
   border-radius: 2px;
   font-family: 'Cascadia Code', Consolas, monospace;
 }
-.relay-console .runbook-stats {
+.waypoint-console .runbook-stats {
   border-top: 0;
   padding: 0 0 14px;
   margin: 0 0 18px;
@@ -145,23 +145,23 @@
     monospace;
   gap: 22px;
 }
-.relay-console .runbook-stats strong {
+.waypoint-console .runbook-stats strong {
   font-size: 15px;
 }
-.relay-console .runs-workbench {
+.waypoint-console .runs-workbench {
   grid-template-columns: 270px minmax(0, 1fr);
   gap: 18px;
 }
-.relay-console .runs-list .section-heading {
+.waypoint-console .runs-list .section-heading {
   padding: 15px;
   border-bottom: 1px solid var(--line);
   margin-bottom: 12px;
 }
-.relay-console .run-options {
+.waypoint-console .run-options {
   padding: 0;
   max-height: 70vh;
 }
-.relay-console .run-options > button {
+.waypoint-console .run-options > button {
   border: 0;
   border-bottom: 1px solid var(--line);
   margin: 0;
@@ -169,25 +169,25 @@
   padding: 13px 15px;
   gap: 5px;
 }
-.relay-console .run-options > button.selected {
+.waypoint-console .run-options > button.selected {
   box-shadow: inset 3px 0 var(--accent);
   background: var(--tint);
 }
-.relay-console .run-options strong {
+.waypoint-console .run-options strong {
   font-size: 12px;
 }
-.relay-console .run-options .badge {
+.waypoint-console .run-options .badge {
   padding: 2px 4px;
 }
-.relay-console .run-heading {
+.waypoint-console .run-heading {
   padding: 18px 20px 12px;
   border-top: 3px solid var(--accent);
 }
-.relay-console .run-heading h2 {
+.waypoint-console .run-heading h2 {
   font-size: 21px;
   margin: 6px 0;
 }
-.relay-console .run-heading .eyebrow {
+.waypoint-console .run-heading .eyebrow {
   font:
     11px 'Cascadia Code',
     Consolas,
@@ -195,7 +195,7 @@
   text-transform: none;
   letter-spacing: 0;
 }
-.relay-console .run-meta {
+.waypoint-console .run-meta {
   padding: 0 20px 16px;
   border-bottom: 1px solid var(--line);
   gap: 12px;
@@ -310,74 +310,74 @@
   font-size: 12px;
   text-align: center;
 }
-.relay-console .run-closed {
+.waypoint-console .run-closed {
   margin: 0;
   border-radius: 0;
   border-top: 1px solid var(--line);
   padding: 16px 20px;
   background: var(--bg);
 }
-.relay-console .run-control {
+.waypoint-console .run-control {
   padding: 18px 20px;
   border-top: 1px solid var(--line);
 }
-.relay-console .run-events {
+.waypoint-console .run-events {
   padding: 16px 20px;
 }
-.relay-console .runbook-footnote {
+.waypoint-console .runbook-footnote {
   margin: 16px 0 0;
   padding: 0;
 }
-.relay-app .template-grid {
+.waypoint-app .template-grid {
   grid-template-columns: 1fr;
   margin: 0;
 }
-.relay-app .template-card {
+.waypoint-app .template-card {
   border-radius: 3px;
 }
-.relay-app .modal {
+.waypoint-app .modal {
   border-radius: 4px;
 }
-.relay-app .primary,
-.relay-login .primary {
+.waypoint-app .primary,
+.waypoint-login .primary {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
 }
-[data-theme='dark'] .relay-app .primary,
-[data-theme='dark'] .relay-login .primary {
+[data-theme='dark'] .waypoint-app .primary,
+[data-theme='dark'] .waypoint-login .primary {
   color: #17242d;
 }
-.relay-console .table-wrap {
+.waypoint-console .table-wrap {
   border-radius: 3px;
 }
-.relay-console th {
+.waypoint-console th {
   background: var(--bg);
   font-family: 'Cascadia Code', Consolas, monospace;
   text-transform: none;
   font-size: 11px;
   letter-spacing: 0;
 }
-.relay-console td {
+.waypoint-console td {
   padding-top: 11px;
   padding-bottom: 11px;
 }
-.relay-login {
+.waypoint-login {
   background: #17242d;
 }
-.relay-login .login-card {
+.waypoint-login .login-card {
   border: 1px solid #566671;
   border-top: 4px solid #dba763;
   border-radius: 0;
 }
-.relay-login .brand {
+.waypoint-login .brand {
   font-family: 'Cascadia Code', Consolas, monospace;
   font-size: 30px;
 }
-.relay-login .brand-mark {
+.waypoint-login .brand-mark {
   display: none;
 }
-.relay-login .login-card h1 {
+.waypoint-login .login-card h1 {
   font-family: 'Cascadia Code', Consolas, monospace;
   font-size: 22px;
 }
@@ -392,37 +392,37 @@
   --input: #17242d;
 }
 @media (max-width: 1100px) {
-  .relay-console {
+  .waypoint-console {
     padding: 20px 18px;
   }
-  .relay-console .runs-workbench {
+  .waypoint-console .runs-workbench {
     grid-template-columns: 220px minmax(0, 1fr);
     gap: 12px;
   }
   .step-workbench {
     grid-template-columns: 170px minmax(0, 1fr);
   }
-  .relay-location {
+  .waypoint-location {
     display: none;
   }
 }
 @media (max-width: 800px) {
-  .relay-commandbar {
+  .waypoint-commandbar {
     padding: 0 14px;
     gap: 12px;
   }
-  .relay-wordmark span,
-  .relay-command-actions button > span,
-  .relay-command-actions kbd {
+  .waypoint-wordmark span,
+  .waypoint-command-actions button > span,
+  .waypoint-command-actions kbd {
     display: none;
   }
-  .relay-command-actions {
+  .waypoint-command-actions {
     gap: 5px;
   }
-  .relay-command-actions button {
+  .waypoint-command-actions button {
     padding: 8px;
   }
-  .relay-toolrail {
+  .waypoint-toolrail {
     position: sticky;
     top: 58px;
     width: 100%;
@@ -432,30 +432,30 @@
     overflow-y: hidden;
     padding: 4px 8px;
   }
-  .relay-toolrail button {
+  .waypoint-toolrail button {
     min-width: 61px;
     min-height: 56px;
     padding: 7px;
   }
-  .relay-console {
+  .waypoint-console {
     margin: 0;
     width: 100%;
     padding: 18px 14px;
   }
-  .relay-console .page-header {
+  .waypoint-console .page-header {
     align-items: flex-start;
   }
-  .relay-console .runs-workbench {
+  .waypoint-console .runs-workbench {
     grid-template-columns: 1fr;
   }
-  .relay-console .run-options {
+  .waypoint-console .run-options {
     max-height: 200px;
   }
-  .relay-console .runbook-stats {
+  .waypoint-console .runbook-stats {
     gap: 10px 15px;
     flex-wrap: wrap;
   }
-  .relay-console .runbook-stats > span {
+  .waypoint-console .runbook-stats > span {
     font-size: 10px;
   }
   .step-workbench {
@@ -478,7 +478,7 @@
   .step-inspector {
     padding: 17px;
   }
-  .relay-console .run-heading {
+  .waypoint-console .run-heading {
     padding: 16px;
   }
 }

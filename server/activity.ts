@@ -1,39 +1,32 @@
-const MAX_BYTES = 16 * 1024;
-const MAX_LINES = 100;
-const NOTICE = '[Console preview truncated; inspect the original response for full output.]';
-const bytes = (value: string) => Buffer.byteLength(JSON.stringify(value), 'utf8');
-// Detach the retained text: a JS substring can otherwise keep a large source string alive.
-const copy = (value: string) => Buffer.from(value, 'utf8').toString('utf8');
-
-/** Bound retained session data independently of the much larger native response limit. */
-export function consolePreview(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  const preview: string[] = [];
-  // Reserve JSON brackets, a comma, and the truncation notice before copying any output.
-  let remaining = MAX_BYTES - 3 - bytes(NOTICE);
-  let truncated = value.length > MAX_LINES;
-  for (const item of value.slice(0, MAX_LINES)) {
-    const text = typeof item === 'string' ? item : (JSON.stringify(item) ?? '');
-    const allowance = remaining - (preview.length ? 1 : 0);
-    const size = text.length > allowance ? allowance + 1 : bytes(text);
-    if (size <= allowance) {
-      remaining = allowance - size;
-      preview.push(copy(text));
-      continue;
+/** Retain at most 16 KiB of serialized text, independent of native response size. */
+export function consolePreview(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+  const notice = '[Console preview truncated; inspect the original response for full output.]';
+  const output: string[] = [];
+  let budget = 16384 - Buffer.byteLength(JSON.stringify([notice]));
+  for (let i = 0; i < input.length; i++) {
+    if (i >= 100 || budget < 3) {
+      output.push(notice);
+      break;
     }
-    // Search only a small prefix; escaping and multibyte text must also fit the byte budget.
-    let low = 0,
-      high = Math.min(text.length, Math.max(0, allowance));
-    while (low < high) {
-      const middle = Math.ceil((low + high) / 2);
-      if (bytes(text.slice(0, middle)) <= allowance) low = middle;
-      else high = middle - 1;
+    const line = typeof input[i] === 'string' ? input[i] : (JSON.stringify(input[i]) ?? '');
+    const points: string[] = [];
+    budget -= 3;
+    let complete = true;
+    for (const point of line) {
+      const bytes = Buffer.byteLength(JSON.stringify(point)) - 2;
+      if (bytes > budget) {
+        complete = false;
+        break;
+      }
+      budget -= bytes;
+      points.push(point);
     }
-    if (low && /[\uD800-\uDBFF]/.test(text[low - 1])) low--;
-    if (low) preview.push(copy(text.slice(0, low)));
-    truncated = true;
-    break;
+    output.push(points.join(''));
+    if (!complete) {
+      output.push(notice);
+      break;
+    }
   }
-  if (truncated) preview.push(NOTICE);
-  return preview;
+  return output;
 }

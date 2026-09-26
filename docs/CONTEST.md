@@ -2,7 +2,7 @@
 
 Source: [contest announcement](https://community.intersystems.com/post/intersystems-programming-contest-build-your-own-management-portal), accessed September 26, 2026.
 
-| Required area                 | Relay implementation                                                                   | Relevant APIs                                                                                                 |
+| Required area                 | Waypoint implementation                                                                | Relevant APIs                                                                                                 |
 | ----------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | Web apps and REST exploration | Web applications, schema-driven REST explorer                                          | `/v2/web-app*`, read operations from the official specification                                               |
 | Permission management         | Users, inherited roles, resource grants and resources                                  | `/v2/security/user*`, `/role*`, `/resource*`                                                                  |
@@ -15,7 +15,7 @@ The application includes English installation instructions and a written demonst
 
 ## Technology bonuses
 
-The [published technology bonus list](https://community.intersystems.com/post/technology-bonuses-intersystems-programming-contest-build-your-own-management-portal) was reviewed. Relay uses Docker and Embedded Python for a concrete purpose: native host telemetry and bounded log reads. It does not add vector search or an AI dependency merely to accumulate points.
+The [published technology bonus list](https://community.intersystems.com/post/technology-bonuses-intersystems-programming-contest-build-your-own-management-portal) was reviewed. Waypoint uses Docker and Embedded Python for a concrete purpose: native host telemetry and bounded log reads. It does not add vector search or an AI dependency merely to accumulate points.
 
 No claim is made for online hosting, published IPM packages, community ideas, articles, YouTube videos, first-time participation or reported vendor bugs. These require separate completed actions or eligibility checks.
 
@@ -29,8 +29,12 @@ No claim is made for online hosting, published IPM packages, community ideas, ar
 
 ### Suggested Open Exchange description
 
-Relay is an operations portal for InterSystems IRIS with durable, step-by-step runbooks. Observation, application maintenance windows and task scheduling windows capture original state, verify transitions and preserve evidence. Interrupted writes require reconciliation and are never automatically replayed. It brings web applications, permissions, wallet secrets, X.509/TLS/OAuth configuration, scheduled tasks, host resources and operational logs into a consistent React interface. A same-origin Node gateway preserves the operator's IRIS privileges; reviewable changes, typed confirmations and conflict checks support everyday administration. The included Docker stack and protected Embedded Python extension provide a reproducible local installation with real telemetry and log data.
+Waypoint is an operations portal for InterSystems IRIS with durable, step-by-step runbooks. Observation, application maintenance windows and task scheduling windows capture original state, verify transitions and preserve evidence. Interrupted writes require reconciliation and are never automatically replayed. It brings web applications, permissions, wallet secrets, X.509/TLS/OAuth configuration, scheduled tasks, host resources and operational logs into a consistent React interface. A same-origin Node gateway preserves the operator's IRIS privileges; reviewable changes, typed confirmations and conflict checks support everyday administration. The included Docker stack and protected Embedded Python extension provide a reproducible local installation with real telemetry and log data.
 
 ## Current review status
 
-See [the latest authorization and readiness review](CONTEST_SECURITY_REVIEW.md). Public repository publication, the Open Exchange listing, participant eligibility and organizer acceptance remain unconfirmed. The sibling projects currently reuse the Harbor administration foundation; this must be disclosed and is not a guarantee of separate acceptance. A requirement to remove that reused implementation is under review with the project owner.
+See [the latest authorization and readiness review](CONTEST_SECURITY_REVIEW.md). Public repository publication, the Open Exchange listing, participant eligibility and organizer acceptance remain unconfirmed. The earlier Harbor application foundation has been replaced by separate implementations. Retained references and validation support are disclosed in [PROVENANCE.md](PROVENANCE.md); separate acceptance still belongs to the organizer.
+
+## Original idea and current walkthrough
+
+The [original project idea](../IDEA.md) and the additional product-specific walkthrough in [README](../README.md) describe the current independent release. The official [contest page](https://openexchange.intersystems.com/contest/48), read September 26, lists the submission deadline as September 27, 2026, 23:59 EST. It also identifies complexity, clarity of instructions, developer experience, applicability and usability as judging criteria. No acceptance or bonus award is implied.

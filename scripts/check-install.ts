@@ -9,7 +9,7 @@ const username = process.env.IRIS_TEST_USER,
 if (!username || !password) throw new Error('Set IRIS_TEST_USER and IRIS_TEST_PASSWORD.');
 const root = await fetch(base);
 assert.equal(root.status, 200);
-assert.match(await root.text(), /Relay/);
+assert.match(await root.text(), /Waypoint/);
 assert.ok(root.headers.get('content-security-policy'));
 const login = await fetch(base + '/api/login', {
   method: 'POST',

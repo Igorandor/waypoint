@@ -12,7 +12,7 @@ if (!user || !password || !certificate)
   );
 const client = new IrisClient(process.env.IRIS_URL ?? 'http://127.0.0.1:52790'),
   auth = 'Basic ' + Buffer.from(user + ':' + password).toString('base64'),
-  alias = 'RelayCertTest' + Date.now();
+  alias = 'WaypointCertTest' + Date.now();
 let created = false;
 try {
   await client.request(auth, {
@@ -23,7 +23,7 @@ try {
       Alias: alias,
       CertificateFile: certificate,
       OwnerList: [user],
-      PeerNames: ['relay.test'],
+      PeerNames: ['waypoint.test'],
     },
   });
   created = true;
@@ -37,7 +37,7 @@ try {
     path: '/v2/security/x509-credential',
     method: 'PUT',
     query: { alias },
-    body: { PeerNames: ['updated.relay.test'] },
+    body: { PeerNames: ['updated.waypoint.test'] },
   });
   assert.deepEqual(
     (
@@ -47,7 +47,7 @@ try {
         query: { alias },
       })
     ).data.PeerNames,
-    ['updated.relay.test'],
+    ['updated.waypoint.test'],
   );
   console.log('PASS X.509 certificate import, owner restriction, update and read');
 } finally {

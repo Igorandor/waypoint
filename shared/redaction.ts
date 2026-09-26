@@ -1,38 +1,62 @@
-/** Credential names may use IRIS casing, OAuth snake_case, or hyphens. */
-function sensitiveField(key: string): boolean {
-  const normalized = key.replace(/[^a-z0-9]/gi, '').toLowerCase();
-  return /password|token|privatekey|secrets?$|walletsecretconfig|hotpkey/.test(normalized);
+/** Waypoint's output projection: classify names separately from diagnostic text. */
+export function credentialField(name: string) {
+  const words = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return (
+    words.includes('password') ||
+    words.includes('token') ||
+    words.includes('privatekey') ||
+    words.endsWith('secret') ||
+    words.endsWith('secrets') ||
+    words === 'walletsecretconfig' ||
+    words.includes('hotpkey')
+  );
 }
-
-/** Collect submitted secrets so an upstream diagnostic cannot echo them as free text. */
-export function credentialValues(value: unknown, sensitive = false): string[] {
-  if (typeof value === 'string') return sensitive && value ? [value] : [];
-  if (Array.isArray(value)) return value.flatMap((item) => credentialValues(item, sensitive));
-  if (value && typeof value === 'object')
-    return Object.entries(value).flatMap(([key, item]) =>
-      credentialValues(item, sensitive || sensitiveField(key)),
-    );
-  return [];
+export function credentialValues(root: unknown, sensitive = false): string[] {
+  const found: string[] = [];
+  const visit = (value: unknown, protectedBranch: boolean) => {
+    if (typeof value === 'string') {
+      if (protectedBranch && value.length) found.push(value);
+      return;
+    }
+    if (value && typeof value === 'object')
+      for (const [name, child] of Object.entries(value))
+        visit(child, protectedBranch || credentialField(name));
+  };
+  visit(root, sensitive);
+  return found;
 }
-
-/** Mask credential-bearing fields before any response, review, or export. */
-export function redact(value: any, secrets: readonly string[] = []): any {
-  const literals = [...new Set(secrets.filter(Boolean))]
-    .sort((a, b) => b.length - a.length)
-    .map((secret) => secret.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  const pattern = literals.length ? new RegExp(literals.join('|'), 'g') : undefined;
-  // One pass over each original string. Never mask the replacement marker again:
-  // attacker-chosen short secrets could otherwise amplify it on every iteration.
-  function visit(item: any): any {
-    if (Array.isArray(item)) return item.map(visit);
-    if (item && typeof item === 'object')
-      return Object.fromEntries(
-        Object.entries(item).map(([key, child]) => [
-          key,
-          sensitiveField(key) ? '[redacted]' : visit(child),
-        ]),
-      );
-    return typeof item === 'string' && pattern ? item.replace(pattern, () => '[redacted]') : item;
-  }
-  return visit(value);
+export function redact(root: any, secrets: readonly string[] = []): any {
+  const choices = [...new Set(secrets)].filter((s) => s.length).sort((a, b) => b.length - a.length);
+  // Literal scanner avoids regex interpretation and never revisits a replacement marker.
+  const mask = (text: string) => {
+    if (!choices.length) return text;
+    let output = '',
+      offset = 0;
+    while (offset < text.length) {
+      let start = text.length,
+        match = '';
+      for (const secret of choices) {
+        const i = text.indexOf(secret, offset);
+        if (i >= 0 && (i < start || (i === start && secret.length > match.length))) {
+          start = i;
+          match = secret;
+        }
+      }
+      if (!match) return output + text.slice(offset);
+      output += text.slice(offset, start) + '[redacted]';
+      offset = start + match.length;
+    }
+    return output;
+  };
+  const project = (value: any): any => {
+    if (typeof value === 'string') return mask(value);
+    if (value === null || typeof value !== 'object') return value;
+    if (Array.isArray(value)) return value.map(project);
+    const entries = Object.entries(value).map(([name, item]) => [
+      name,
+      credentialField(name) ? '[redacted]' : project(item),
+    ]);
+    return Object.fromEntries(entries);
+  };
+  return project(root);
 }

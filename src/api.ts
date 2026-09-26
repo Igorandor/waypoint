@@ -1,6 +1,5 @@
 import type { RecordData } from '../shared/schema';
 export type ApiResult<T = any> = { data: T; status: number; console: string[]; asyncId?: string };
-let csrf = '';
 export class RequestError extends Error {
   constructor(
     message: string,
@@ -9,67 +8,81 @@ export class RequestError extends Error {
     super(message);
   }
 }
-export async function request<T = any>(path: string, body?: unknown): Promise<T> {
-  const response = await fetch('/api/' + path, {
-    method: body === undefined ? 'GET' : 'POST',
-    headers: body === undefined ? {} : { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
-    body: body === undefined ? undefined : JSON.stringify(body),
+const session = { token: '' };
+export async function request<T = any>(resource: string, content?: unknown): Promise<T> {
+  const writing = content !== undefined;
+  const response = await fetch('/api/' + resource, {
+    method: writing ? 'POST' : 'GET',
+    credentials: 'same-origin',
+    headers: writing ? { 'Content-Type': 'application/json', 'X-CSRF-Token': session.token } : {},
+    body: writing ? JSON.stringify(content) : undefined,
   });
-  let data: any;
+  let output: any;
   try {
-    data = await response.json();
+    output = await response.json();
   } catch {
     throw new RequestError(
-      'The portal gateway returned an unreadable response. Check that the server is running and try again.',
+      'Unreadable gateway response. Verify current state before repeating a command.',
       response.status,
     );
   }
   if (!response.ok) {
-    if (response.status === 401 && path !== 'login' && path !== 'session')
+    if (response.status === 401 && !['login', 'session'].includes(resource))
       window.dispatchEvent(new Event('session-ended'));
-    throw new RequestError(data.error ?? 'Request failed.', response.status);
+    throw new RequestError(
+      typeof output.error === 'string' ? output.error : 'Waypoint could not complete the request.',
+      response.status,
+    );
   }
-  if (data.csrf) csrf = data.csrf;
-  return data;
+  if (typeof output.csrf === 'string') session.token = output.csrf;
+  if (resource === 'logout') session.token = '';
+  return output;
 }
 export async function iris<T = any>(
   path: string,
   query: Record<string, string> = {},
-  method: 'GET' | 'PUT' | 'POST' | 'DELETE' = 'GET',
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
   body?: RecordData,
 ): Promise<ApiResult<T>> {
-  const result = await request<ApiResult<T>>('iris', { path, method, query, body });
-  if (result.asyncId) {
-    for (let i = 0; i < 20; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 700));
-      const next = await request<ApiResult>('iris', {
-        path: '/v2/async-result',
-        method: 'GET',
-        query: { id: result.asyncId },
-      });
-      if (next.data.State === 'Finished')
-        return { ...next, data: next.data.Result, console: next.data.Console ?? [] };
-      if (['Failed', 'Canceled', 'Paused'].includes(next.data.State))
+  const accepted = await request<ApiResult<T>>('iris', { path, query, method, body });
+  if (!accepted.asyncId) return accepted;
+  const job = accepted.asyncId;
+  let remaining = 20;
+  while (remaining--) {
+    await new Promise<void>((done) => window.setTimeout(done, 700));
+    const progress = await request<ApiResult>('iris', {
+      path: '/v2/async-result',
+      method: 'GET',
+      query: { id: job },
+    });
+    switch (progress.data.State) {
+      case 'Finished':
+        return { ...progress, data: progress.data.Result, console: progress.data.Console ?? [] };
+      case 'Failed':
+      case 'Canceled':
+      case 'Paused':
         throw new RequestError(
-          `IRIS background job ${next.data.State.toLowerCase()}: ${next.data.FailureReason ?? result.asyncId}`,
+          'Background job ' + progress.data.State + ': ' + (progress.data.FailureReason ?? job),
           422,
         );
     }
-    throw new RequestError(
-      `IRIS is still processing job ${result.asyncId}. Check the job in REST explorer before requesting it again.`,
-      202,
-    );
   }
-  return result;
+  throw new RequestError(
+    'Job ' + job + ' is still running. Inspect background jobs before repeating this command.',
+    202,
+  );
 }
-export function download(name: string, value: unknown) {
-  const blob = new Blob([typeof value === 'string' ? value : JSON.stringify(value, null, 2)], {
-    type: typeof value === 'string' ? 'text/plain' : 'application/json',
-  });
-  const url = URL.createObjectURL(blob),
-    a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+export function download(filename: string, content: unknown) {
+  const url = URL.createObjectURL(
+    new Blob([typeof content === 'string' ? content : JSON.stringify(content, null, 2)], {
+      type: typeof content === 'string' ? 'text/plain' : 'application/json',
+    }),
+  );
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
