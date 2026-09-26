@@ -221,7 +221,7 @@ export function RunDetail({
             <strong>{run.status === 'completed' ? 'Run complete' : 'Run closed'}</strong>
             <p>
               {run.status === 'completed'
-                ? 'Review the recorded and bypassed steps, including source evidence, for the actual operational outcome.'
+                ? 'Expand a step to inspect its result. Skipped steps remain marked in this report.'
                 : 'The recorded steps remain available. No remaining step will run.'}
             </p>
           </div>

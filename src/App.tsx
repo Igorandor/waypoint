@@ -9,7 +9,6 @@ import {
   Command,
   ExternalLink,
   Globe,
-  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -29,7 +28,7 @@ import { request } from './api';
 
 import { useData } from './hooks';
 
-import { Badge, ErrorBox, IconButton, Loading, Modal } from './components/ui';
+import { ErrorBox, IconButton, Loading, Modal } from './components/ui';
 
 import { Collection } from './pages/Collection';
 
@@ -146,7 +145,6 @@ export default function App() {
           </div>
           <Server size={16} />
         </div>
-        <div className="nav-label">WORKSPACE</div>
         <nav aria-label="Main navigation">
           {navigation.map(({ id, label, icon: Icon }) => (
             <button
@@ -162,14 +160,6 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="sidebar-note">
-            <Shield size={17} />
-            <span>
-              Connected with your
-              <br />
-              IRIS account permissions
-            </span>
-          </div>
           <button
             className="profile"
             onClick={async () => {
@@ -214,7 +204,6 @@ export default function App() {
               <span>Go to…</span>
               <kbd>Ctrl K</kbd>
             </button>
-            <Badge tone="good">IRIS session</Badge>
             <IconButton
               title={theme === 'light' ? 'Use dark theme' : 'Use light theme'}
               onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
@@ -262,10 +251,6 @@ export default function App() {
 
           {!navigation.some((n) => n.id === page) && <Overview navigate={navigate} info={info} />}
         </main>
-        <div className="app-footer">
-          <span>Relay · Every step, accounted for.</span>
-          <span>InterSystems IRIS · SysAdmin API v2</span>
-        </div>
       </div>
 
       {toast && (
@@ -398,51 +383,18 @@ function Login({ onLogin }: { onLogin: (s: any) => void }) {
 
   return (
     <div className="login-layout">
-      <div className="login-story">
-        <div className="brand">
-          <span className="brand-mark">R</span>
-          <span>relay</span>
-        </div>
-        <div>
-          <span className="eyebrow">OPERATIONS WITH A RECORD</span>
-          <h1>
-            One step at a time.
-            <br />
-            Every result recorded.
-          </h1>
-          <p>
-            Plan a maintenance window, verify each transition and leave a useful record for the next
-            operator.
-          </p>
-          <div className="login-topology">
-            <div>
-              <Server size={24} /> Your IRIS instance
-            </div>
-            <span />
-            <div className="topology-nodes">
-              <span>
-                <Globe size={18} /> Applications
-              </span>
-              <span>
-                <Users size={18} /> Access
-              </span>
-              <span>
-                <Activity size={18} /> Operations
-              </span>
-            </div>
-          </div>
-        </div>
-        <small>Built for the InterSystems Management Portal contest · 2026</small>
-      </div>
       <div className="login-form">
         <div className="login-card">
-          <span className="login-key">
-            <KeyRound size={24} />
-          </span>
-          <h2>Welcome to Relay</h2>
+          <div className="brand">
+            <span className="brand-mark">R</span>
+            <span>
+              relay<span className="brand-subtitle">IRIS operations</span>
+            </span>
+          </div>
+          <h1>Sign in</h1>
           <p>Sign in with your IRIS account.</p>
           <div className="target-label">
-            <span className="live-dot" />
+            <Server size={15} aria-hidden="true" />
             <code>{target}</code>
           </div>
           {error && <ErrorBox error={error} />}

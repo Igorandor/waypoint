@@ -33,6 +33,8 @@ The additional `npm run test:runbooks` suite verifies the full gateway flow: per
 
 ## Browser review
 
+The interface copy and layout were refined in a subsequent review: direct screen titles, compact sign-in forms, fewer repeated labels and smaller operation cards. The updated production interfaces were checked at desktop and mobile widths, including keyboard navigation and theme switching.
+
 An observation report created before a real Compose portal-container replacement was retrieved afterward with its original ID, timestamps, completed steps and event journal intact. The run volume therefore survived the tested replacement, independently of the unit tests that simulate engine restart.
 
 The actual browser was used against the real server, including the production Compose installation. Checks covered sign-in, navigation, loading and loaded states, task details, native process/database data, host telemetry, system logs, asynchronous security audit, and an application editor's separate change-review step. Keyboard activation and Escape dismissal were checked. A 390 × 844 viewport was used to review the responsive layout and dark theme. This was an interactive review, not a claim of automated WCAG certification.

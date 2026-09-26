@@ -79,9 +79,8 @@ export function Runbooks() {
   return (
     <>
       <PageHeader
-        eyebrow="Operations desk"
-        title="A clear sequence for important work."
-        description="Prepare a run, execute one step at a time and keep the evidence together."
+        title="Operations desk"
+        description="Observation reports and application or task maintenance windows."
       >
         <button disabled={loading || busy} onClick={() => void refresh()}>
           <RefreshCw size={16} className={loading ? 'spin' : ''} /> Refresh runs
@@ -100,11 +99,10 @@ export function Runbooks() {
           <FileCheck2 size={17} />
           <strong>{runs.filter((r) => r.status === 'completed').length}</strong> completed
         </span>
-        <span className="persist-note">Saved on the gateway · scoped to your account</span>
+        <span className="persist-note">History for this account</span>
       </div>
       <div className="template-heading">
-        <h2>Start from a runbook</h2>
-        <span>Fixed steps. Reviewed targets. No automatic retries.</span>
+        <h2>New run</h2>
       </div>
       <div className="template-grid">
         {(Object.entries(templates) as Array<[TemplateId, (typeof templates)[TemplateId]]>).map(
@@ -211,28 +209,17 @@ export function Runbooks() {
           <RunDetail key={run.id} run={run} busy={busy} onAction={action} />
         ) : (
           <section className="panel run-placeholder">
-            <div className="empty-route">
-              <span>1</span>
-              <i />
-              <span>2</span>
-              <i />
-              <CheckPoint />
-            </div>
-            <h2>Your next operation starts here.</h2>
-            <p>
-              Choose a runbook to see its steps before anything runs. Observation is a good first
-              check of this instance.
-            </p>
+            <h2>No run selected</h2>
+            <p>Select a saved run from the history, or create an observation report.</p>
             <button className="primary" onClick={() => setTemplate('observe')}>
-              Prepare an observation run <ArrowUpRight size={16} />
+              Create observation report <ArrowUpRight size={16} />
             </button>
           </section>
         )}
       </div>
       <p className="runbook-footnote">
-        Relay records API outcomes and operator checkpoints. It does not run external maintenance
-        commands, drain existing sessions or certify business outcomes. An open maintenance window
-        stays open until you explicitly restore it.
+        Maintenance windows require manual restoration. Closing this page leaves the application or
+        task in its current state.
       </p>
       {template && (
         <CreateRun
@@ -249,7 +236,4 @@ export function Runbooks() {
       )}
     </>
   );
-}
-function CheckPoint() {
-  return <FileCheck2 size={26} />;
 }

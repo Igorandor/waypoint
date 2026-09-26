@@ -1,7 +1,5 @@
 # Relay for InterSystems IRIS
 
-**Prepare a run. Verify each transition. Keep the operational evidence.**
-
 Relay combines a complete IRIS administration client with durable, step-by-step operations. Its main workspace guides an observation run, an application maintenance window or a task scheduling window. It remembers the original state, verifies transitions, records checkpoints and handles uncertain write outcomes without automatically replaying them. Operational evidence comes from the real SysAdmin v2 APIs and the protected native telemetry extension.
 
 Built for the [InterSystems Programming Contest: Build Your Own Management Portal](https://community.intersystems.com/post/intersystems-programming-contest-build-your-own-management-portal).
