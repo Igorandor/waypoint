@@ -5,4 +5,4 @@
 - DM Sans and Manrope fonts are bundled through Fontsource under their SIL Open Font License distributions.
 - Lucide icons use the ISC license. React, Express, Vite and the remaining npm dependencies retain their respective licenses; exact resolved versions are recorded in `package-lock.json`.
 
-The application code was created specifically for this project. It is not a copy of an existing contest application.
+Relay's durable operations domain was created for this project. Its general administration foundation is shared with Harbor; the Harbor copyright notice is retained in `LICENSE`. See [project provenance](docs/PROVENANCE.md) for the reused components and the separate runbook implementation. This attribution does not imply that the organizers have approved separate contest entries.

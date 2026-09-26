@@ -18,7 +18,8 @@
     "test:install": "tsx scripts/check-install.ts",
     "test:x509": "tsx scripts/live-x509.ts",
     "test:process": "tsx scripts/live-process.ts",
-    "test:runbooks": "tsx scripts/live-runbooks.ts"
+    "test:runbooks": "tsx scripts/live-runbooks.ts",
+    "test:authorization": "tsx scripts/live-authorization.ts"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.3.0",
