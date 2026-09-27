@@ -3,17 +3,28 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 
 const origin = 'http://127.0.0.1:3430';
+const tasks = process.argv.includes('--tasks');
+const expected = tasks ? 8 : 12;
+const label = tasks ? 'task inventory and dossier' : 'native observation hook';
 const bundle = await build({
-  entryPoints: [fileURLToPath(new URL('../tests/browser/native-observation.jsx', import.meta.url))],
+  entryPoints: [
+    fileURLToPath(
+      new URL(
+        `../tests/browser/${tasks ? 'task-list' : 'native-observation'}.jsx`,
+        import.meta.url,
+      ),
+    ),
+  ],
   bundle: true,
   write: false,
   platform: 'browser',
   format: 'iife',
+  loader: { '.css': 'empty' },
   define: { 'process.env.NODE_ENV': '"development"' },
 });
-const html = `<!doctype html><meta charset="utf-8"><title>Waypoint hook regression</title>
-<h1>Waypoint native observation regression</h1>
-<p>Actual React and hook; synthetic transport, controlled timers and simulated foreground.</p>
+const html = `<!doctype html><meta charset="utf-8"><title>Waypoint ${label} regression</title>
+<h1>Waypoint ${label} regression</h1>
+<p>Actual React source with synthetic transport. This tests behavior, not visual layout.</p>
 <div id="probe"></div><pre id="result">Running…</pre><script src="/probe.js"></script>`;
 let completed = false;
 const server = http.createServer(async (req, res) => {
@@ -47,12 +58,14 @@ const server = http.createServer(async (req, res) => {
     const valid =
       !report.error &&
       Array.isArray(report.results) &&
-      report.results.length === 12 &&
+      report.results.length === expected &&
       report.results.every((result) => result.pass === true) &&
       report.nativeCalls === 0 &&
       report.appliedWrites === 0;
     console.log(JSON.stringify(report, null, 2));
-    console.log(valid ? 'PASS: 12/12 actual hook checks.' : 'FAIL: hook regression.');
+    console.log(
+      valid ? `PASS: ${expected}/${expected} ${label} checks.` : `FAIL: ${label} regression.`,
+    );
     process.exitCode = valid ? 0 : 1;
     completed = true;
     clearTimeout(deadline);
@@ -65,7 +78,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 server.listen(3430, '127.0.0.1', () => {
-  console.log(`Open ${origin}/ in a browser. The 12 checks run automatically.`);
+  console.log(`Open ${origin}/ in a browser. The ${expected} checks run automatically.`);
   console.log('The runner reports JSON and exits after completion. No IRIS connection is used.');
 });
 server.on('error', (error) => {

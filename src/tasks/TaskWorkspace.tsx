@@ -12,7 +12,7 @@ import {
   type NativeObject,
 } from '../../shared/task-insights';
 import type { ProcedureBody } from '../../shared/procedure';
-import { iris, request, download } from '../api';
+import { iris, request, download, RequestError } from '../api';
 import { Badge, ErrorBox, Loading, PageHeader } from '../components/ui';
 import { Evidence } from '../components/DataView';
 import { ReviewedAction, type ActionCandidate } from '../commands/ReviewedAction';
@@ -118,6 +118,10 @@ export function TaskWorkspace() {
       setTasks(value);
       setListAt(new Date().toISOString());
     } catch (cause) {
+      if (cause instanceof RequestError && cause.status === 403) {
+        setTasks([]);
+        setListAt('');
+      }
       setError((cause as Error).message);
     } finally {
       setLoading(false);
