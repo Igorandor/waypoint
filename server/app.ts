@@ -107,10 +107,11 @@ export function createApp(settings: AppOptions) {
   app.post('/api/login', async (req, res) => {
     const input = signIn.parse(req.body);
     operators.budget(req.ip ?? 'local');
+    const replacing = operators.replacement(req);
     const auth = 'Basic ' + Buffer.from(input.username + ':' + input.password).toString('base64');
     const { data } = await client.request(auth, { path: '/info', method: 'GET' });
     nativeIdentity(data);
-    res.json(operators.establish(req, res, auth, data));
+    res.json(operators.establish(req, res, auth, data, replacing));
   });
   app.use('/api', operators.require);
   app.get('/api/session', (_req, res) =>

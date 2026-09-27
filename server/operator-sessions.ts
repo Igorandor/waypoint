@@ -27,8 +27,15 @@ export class Operators {
     if (recent.length >= 10) throw new ApiError(429, 'Sign-in limit reached. Wait one minute.');
     this.logins.set(address, [...recent, this.clock()]);
   }
-  establish(req: Request, res: Response, auth: string, info: any) {
+  replacement(req: Request): OperatorSession | undefined {
     this.expire();
+    return this.records[req.cookies?.waypoint_session];
+  }
+  establish(req: Request, res: Response, auth: string, info: any, replacing?: OperatorSession) {
+    this.expire();
+    // A completed logout or newer login must win over authentication still awaiting IRIS.
+    if (replacing && this.records[req.cookies?.waypoint_session] !== replacing)
+      throw new ApiError(409, 'The session changed while signing in. Sign in again.');
     if (Object.keys(this.records).length >= 100)
       throw new ApiError(503, 'All operator session slots are in use.');
     this.remove(req, res, false);

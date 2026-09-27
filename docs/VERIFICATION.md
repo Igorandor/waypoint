@@ -70,3 +70,7 @@ The current full `npm run check` passes frontend/server builds and **215 tests**
 ## Procedure import/export bounds — September 27, 2026
 
 The current full check passes frontend/server builds and **220 tests**. Procedure imports now accept supported own exports within derived UTF-8 and formatting limits; the global 256 KiB request limit is unchanged, with only the exact POST import envelope receiving its 41-byte overhead. See [procedure import/export limits and exact-boundary verification](PROCEDURE_IMPORT_LIMITS.md). Earlier counts remain historical checkpoints. No existing data or native procedure execution was involved.
+
+## Pending login ownership — September 27, 2026
+
+The full check now passes frontend/server builds and **226 tests**, including six actual HTTP middleware regressions for login completing after logout, session replacement or expiry. Rejected late authentication cannot issue a replacement session cookie. See [login replacement ownership and limits](LOGIN_REPLACEMENT_OWNERSHIP.md). Tests use synthetic native responses and new temporary directories; no existing data or native operation is used.
