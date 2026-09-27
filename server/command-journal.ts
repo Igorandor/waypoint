@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { CommandResult } from '../shared/command-result.js';
 import { ApiError } from './upstream.js';
 import { readBoundedJson } from './bounded-file.js';
+import { validateStoredCommand } from './command-validation.js';
 export type CommandSummary = Pick<
   CommandResult,
   | 'id'
@@ -40,15 +41,13 @@ export class CommandJournal {
   async read(owner: string, id: string): Promise<CommandResult> {
     try {
       const filename = this.file(owner, id);
-      const result = (await readBoundedJson(filename, 1024 * 1024)) as CommandResult;
+      const result = await readBoundedJson(filename, 1024 * 1024);
+      validateStoredCommand(result);
       if (
         result.format !== 1 ||
         result.owner !== owner ||
         result.instance !== this.instance ||
-        result.id !== id ||
-        !Array.isArray(result.events) ||
-        !result.operation ||
-        !result.read
+        result.id !== id
       )
         throw new Error('Invalid command');
       return result;
