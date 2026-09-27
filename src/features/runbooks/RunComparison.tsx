@@ -47,7 +47,11 @@ export function RunComparison({
             <select
               value={before}
               disabled={busy}
-              onChange={(event) => setBefore(event.target.value)}
+              onChange={(event) => {
+                setBefore(event.target.value);
+                setResult(undefined);
+                setError('');
+              }}
             >
               <option value="">Choose a run</option>
               {runs.map((run) => (
@@ -63,7 +67,11 @@ export function RunComparison({
             <select
               value={after}
               disabled={busy}
-              onChange={(event) => setAfter(event.target.value)}
+              onChange={(event) => {
+                setAfter(event.target.value);
+                setResult(undefined);
+                setError('');
+              }}
             >
               <option value="">Choose a run</option>
               {runs.map((run) => (
