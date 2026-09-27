@@ -11,16 +11,19 @@ import './records.css';
 export function RunDetail({
   run,
   busy,
+  outcomeUnknown = false,
   onAction,
 }: {
   run: Run;
   busy: boolean;
+  outcomeUnknown?: boolean;
   onAction: RunAction;
 }) {
   const [note, setNote] = useState(''),
     [restore, setRestore] = useState(false),
     [confirmation, setConfirmation] = useState('');
   const [restoreError, setRestoreError] = useState('');
+  const blocked = busy || outcomeUnknown;
   const [completedItems, setCompletedItems] = useState<string[]>([]);
   const index = nextStep(run),
     current = run.steps[index];
@@ -46,10 +49,20 @@ export function RunDetail({
           <h2>{run.title}</h2>
           <code>{run.target}</code>
         </div>
-        <button onClick={() => download('waypoint-run-' + run.id + '.json', run)}>
+        <button
+          disabled={outcomeUnknown}
+          onClick={() => download('waypoint-run-' + run.id + '.json', run)}
+        >
           <Download size={15} /> Export report
         </button>
       </div>
+      {outcomeUnknown && (
+        <p role="alert">
+          The action result has not been retrieved. This is the last known report, from{' '}
+          {new Date(run.updatedAt).toLocaleString()}. Actions and exports are paused until Refresh
+          runs retrieves the current record.
+        </p>
+      )}
       <div className="run-meta">
         <Badge tone={run.status === 'completed' ? 'good' : 'neutral'}>
           {run.status === 'completed'
@@ -72,7 +85,7 @@ export function RunDetail({
             </p>
           </div>
           <button
-            disabled={busy}
+            disabled={blocked}
             onClick={() => {
               setRestore(true);
               setConfirmation('');
@@ -149,7 +162,7 @@ export function RunDetail({
                   <input
                     type="checkbox"
                     checked={completedItems.includes(item.id)}
-                    disabled={busy}
+                    disabled={blocked}
                     onChange={(event) =>
                       setCompletedItems(
                         event.target.checked
@@ -178,7 +191,7 @@ export function RunDetail({
                 rows={3}
                 maxLength={2000}
                 value={note}
-                disabled={busy}
+                disabled={blocked}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="What was done, what was checked, and whether the target is ready to restore."
               />
@@ -194,7 +207,7 @@ export function RunDetail({
               </div>
               <button
                 className="primary"
-                disabled={busy}
+                disabled={blocked}
                 onClick={() => void onAction('reconcile')}
               >
                 <RotateCcw size={16} /> Check current state
@@ -211,7 +224,7 @@ export function RunDetail({
               <button
                 className="primary"
                 disabled={
-                  busy ||
+                  blocked ||
                   current.status === 'running' ||
                   (current.kind === 'checkpoint' &&
                     (current.procedureStep?.kind !== 'checklist' ||
@@ -229,13 +242,15 @@ export function RunDetail({
                   }
                 }}
               >
-                {busy
-                  ? 'Working…'
-                  : current.status === 'running'
-                    ? 'Operation in progress'
-                    : current.status === 'failed'
-                      ? 'Retry this step'
-                      : label}
+                {outcomeUnknown
+                  ? 'Refresh run before continuing'
+                  : busy
+                    ? 'Working…'
+                    : current.status === 'running'
+                      ? 'Operation in progress'
+                      : current.status === 'failed'
+                        ? 'Retry this step'
+                        : label}
                 <ArrowRight size={16} />
               </button>
             </div>
@@ -243,7 +258,7 @@ export function RunDetail({
           {!run.needsRestore && (
             <button
               className="text-link stop-run"
-              disabled={busy || current.status === 'running'}
+              disabled={blocked || current.status === 'running'}
               onClick={() => void onAction('stop')}
             >
               <Square size={12} /> Close this run without continuing
@@ -275,7 +290,7 @@ export function RunDetail({
           </div>
         ))}
       </details>
-      <RunRecordTools run={run} busy={busy} onAction={onAction} />
+      <RunRecordTools run={run} busy={busy} exportBlocked={outcomeUnknown} onAction={onAction} />
       {restore && (
         <Modal
           title="Restore the original state"
@@ -298,7 +313,7 @@ export function RunDetail({
               <input
                 aria-label="Confirm restoration target"
                 value={confirmation}
-                disabled={busy}
+                disabled={blocked}
                 onChange={(e) => setConfirmation(e.target.value)}
               />
             </label>
@@ -310,7 +325,7 @@ export function RunDetail({
             </button>
             <button
               className="primary"
-              disabled={busy || confirmation !== run.target}
+              disabled={blocked || confirmation !== run.target}
               onClick={async () => {
                 setRestoreError('');
                 const result = await onAction('restore', { confirmation });

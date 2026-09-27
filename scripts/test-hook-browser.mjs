@@ -5,13 +5,22 @@ import { build } from 'esbuild';
 const origin = 'http://127.0.0.1:3430';
 const tasks = process.argv.includes('--tasks');
 const applications = process.argv.includes('--applications');
-const expected = applications ? 8 : 12;
-const label = applications
-  ? 'application inventory and dossier'
-  : tasks
-    ? 'task inventory and dossier'
-    : 'native observation hook';
-const entry = applications ? 'application-inventory' : tasks ? 'task-list' : 'native-observation';
+const dispatch = process.argv.includes('--dispatch');
+const expected = dispatch ? 15 : applications ? 8 : 12;
+const label = dispatch
+  ? 'run dispatch recovery'
+  : applications
+    ? 'application inventory and dossier'
+    : tasks
+      ? 'task inventory and dossier'
+      : 'native observation hook';
+const entry = dispatch
+  ? 'run-dispatch'
+  : applications
+    ? 'application-inventory'
+    : tasks
+      ? 'task-list'
+      : 'native-observation';
 const bundle = await build({
   entryPoints: [fileURLToPath(new URL(`../tests/browser/${entry}.jsx`, import.meta.url))],
   bundle: true,

@@ -12,14 +12,15 @@ import {
   Workflow,
 } from 'lucide-react';
 import { templates, type Run, type RunSummary, type TemplateId } from '../../shared/runbook';
-import { request } from '../api';
+import { request, RequestError } from '../api';
 import { Badge, ErrorBox, Loading, Modal, PageHeader } from '../components/ui';
 import { CreateRun } from '../features/runbooks/CreateRun';
 import { RunDetail } from '../features/runbooks/RunDetail';
 import { RunComparison } from '../features/runbooks/RunComparison';
 import { readProtected, refreshProtected } from '../protected-read';
 
-export type RunActionResult = { ok: true; warning?: string } | { ok: false; error: string };
+export type RunActionResult =
+  { ok: true; warning?: string } | { ok: false; error: string; outcomeUnknown?: boolean };
 export type RunAction = (
   action: string,
   body?: Record<string, unknown>,
@@ -37,11 +38,14 @@ export async function performRunAction(
   try {
     updated = await transport<Run>('runs/' + id + '/' + action, body);
   } catch (cause) {
+    const outcomeUnknown =
+      cause instanceof TypeError ||
+      (cause instanceof RequestError &&
+        ((cause.status >= 200 && cause.status < 300) || cause.status >= 500));
     return {
       ok: false,
-      error:
-        (cause as Error).message +
-        ' Refresh this run before retrying if the connection was interrupted.',
+      error: (cause as Error).message,
+      outcomeUnknown,
     };
   }
   // The returned record confirms the action independently of the history list.
@@ -74,17 +78,29 @@ export function Runbooks() {
     [archived, setArchived] = useState(false),
     [from, setFrom] = useState(''),
     [to, setTo] = useState('');
+  const [unresolvedRuns, setUnresolvedRuns] = useState<Set<string>>(() => new Set());
   const readList = () =>
     readProtected<RunSummary[]>('runs', setRuns, () => {
       setRuns([]);
       setComparing(false);
     });
   const readDetail = (id: string) =>
-    readProtected<Run>('runs/' + id, setRun, () => {
-      setRun((current) => (current?.id === id ? undefined : current));
-      setRuns((current) => current.filter((record) => record.id !== id));
-      setComparing(false);
-    });
+    readProtected<Run>(
+      'runs/' + id,
+      (received) => {
+        setRun(received);
+        setUnresolvedRuns((current) => {
+          const remaining = new Set(current);
+          remaining.delete(id);
+          return remaining;
+        });
+      },
+      () => {
+        setRun((current) => (current?.id === id ? undefined : current));
+        setRuns((current) => current.filter((record) => record.id !== id));
+        setComparing(false);
+      },
+    );
   async function refresh() {
     setError('');
     setLoading(true);
@@ -130,10 +146,34 @@ export function Runbooks() {
     body: Record<string, unknown> = {},
   ): Promise<RunActionResult> {
     if (!run) return { ok: false, error: 'Select a run before performing this action.' };
+    if (unresolvedRuns.has(run.id))
+      return { ok: false, error: 'Read the current run before sending another action.' };
     setBusy(true);
     setError('');
     try {
       const result = await performRunAction(run.id, action, body, setRun, setRuns);
+      if (!result.ok && result.outcomeUnknown) {
+        const id = run.id;
+        setUnresolvedRuns((current) => new Set(current).add(id));
+        let recovery: string;
+        try {
+          await readDetail(id);
+          recovery =
+            'The current run was read from the journal. Inspect its recorded state before continuing.';
+        } catch (cause) {
+          recovery =
+            'The current run could not be read: ' +
+            (cause as Error).message +
+            ' Use Refresh runs before sending another action.';
+        }
+        const error =
+          'The action response was not obtained; the action may have been applied. ' +
+          result.error +
+          ' ' +
+          recovery;
+        setError(error);
+        return { ...result, error };
+      }
       setError(result.ok ? (result.warning ?? '') : result.error);
       return result;
     } finally {
@@ -265,7 +305,13 @@ export function Runbooks() {
           )}
         </section>
         {run ? (
-          <RunDetail key={run.id} run={run} busy={busy || loading} onAction={action} />
+          <RunDetail
+            key={run.id}
+            run={run}
+            busy={busy || loading}
+            outcomeUnknown={unresolvedRuns.has(run.id)}
+            onAction={action}
+          />
         ) : (
           <section className="panel run-placeholder">
             <h2>No run selected</h2>

@@ -149,3 +149,32 @@ test('checkpoint draft is locked while its action is pending and editable again 
     assert.equal(noteField?.includes('disabled=""'), busy);
   }
 });
+
+test('missing run action outcomes are distinguished from explicit HTTP rejections', async () => {
+  const missing = [
+    new TypeError('Failed to fetch'),
+    new RequestError('Unreadable gateway response', 200),
+    new RequestError('Gateway unavailable', 502),
+  ];
+  const rejected = [new RequestError('Forbidden', 403), new RequestError('Run changed', 409)];
+  for (const cause of [...missing, ...rejected]) {
+    const calls: string[] = [];
+    const result = await performRunAction(
+      'fixture-run',
+      'next',
+      {},
+      () => assert.fail('No response record exists'),
+      () => assert.fail('Do not invent a successful list refresh'),
+      (async (path: string) => {
+        calls.push(path);
+        throw cause;
+      }) as typeof request,
+    );
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.error, cause.message);
+      assert.equal(result.outcomeUnknown, missing.includes(cause));
+    }
+    assert.deepEqual(calls, ['runs/fixture-run/next']);
+  }
+});

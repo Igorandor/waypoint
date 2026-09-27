@@ -34,16 +34,19 @@ function downloadableHtml(run: Run) {
 export function RunRecordTools({
   run,
   busy,
+  exportBlocked = false,
   onAction,
 }: {
   run: Run;
   busy: boolean;
+  exportBlocked?: boolean;
   onAction: RunAction;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<HandoverInput>(emptyHandover);
   const [revision, setRevision] = useState(0);
   const [error, setError] = useState('');
+  const blocked = busy || exportBlocked;
   const [note, setNote] = useState('');
   const [category, setCategory] = useState<'observation' | 'decision' | 'follow-up'>('observation');
   const checks = assertionCounts(run);
@@ -87,19 +90,20 @@ export function RunRecordTools({
         </div>
       )}
       <div className="record-tool-actions">
-        <button disabled={busy} onClick={edit}>
+        <button disabled={blocked} onClick={edit}>
           <Send size={15} /> Prepare handover
         </button>
         <button
+          disabled={exportBlocked}
           onClick={() => download('waypoint-handover-' + run.id + '.json', exportHandover(run))}
         >
           <Download size={15} /> JSON package
         </button>
-        <button onClick={() => downloadableHtml(run)}>
+        <button disabled={exportBlocked} onClick={() => downloadableHtml(run)}>
           <Download size={15} /> Printable report
         </button>
         <button
-          disabled={busy || (!run.archivedAt && !archive.allowed)}
+          disabled={blocked || (!run.archivedAt && !archive.allowed)}
           title={run.archivedAt ? 'Return this closed run to history' : archive.reason}
           onClick={() =>
             void onAction('archive', { revision: run.revision ?? 0, archived: !run.archivedAt })
@@ -153,7 +157,7 @@ export function RunRecordTools({
           Note type
           <select
             value={category}
-            disabled={busy}
+            disabled={blocked}
             onChange={(event) => setCategory(event.target.value as typeof category)}
           >
             <option value="observation">Observation</option>
@@ -167,12 +171,12 @@ export function RunRecordTools({
             rows={3}
             maxLength={2000}
             value={note}
-            disabled={busy}
+            disabled={blocked}
             onChange={(event) => setNote(event.target.value)}
           />
         </label>
         <button
-          disabled={busy || !note.trim()}
+          disabled={blocked || !note.trim()}
           onClick={async () => {
             if (
               (
@@ -211,7 +215,7 @@ export function RunRecordTools({
               Intended recipient
               <input
                 maxLength={128}
-                disabled={busy}
+                disabled={blocked}
                 value={draft.recipient}
                 onChange={(event) => setDraft({ ...draft, recipient: event.target.value })}
               />
@@ -221,7 +225,7 @@ export function RunRecordTools({
               <textarea
                 rows={4}
                 maxLength={2000}
-                disabled={busy}
+                disabled={blocked}
                 value={draft.summary}
                 onChange={(event) => setDraft({ ...draft, summary: event.target.value })}
               />
@@ -231,7 +235,7 @@ export function RunRecordTools({
               <textarea
                 rows={3}
                 maxLength={2000}
-                disabled={busy}
+                disabled={blocked}
                 value={draft.outstandingRisks}
                 onChange={(event) => setDraft({ ...draft, outstandingRisks: event.target.value })}
               />
@@ -244,7 +248,7 @@ export function RunRecordTools({
                   <input
                     required
                     maxLength={200}
-                    disabled={busy}
+                    disabled={blocked}
                     value={item.title}
                     onChange={(event) =>
                       setDraft({
@@ -260,7 +264,7 @@ export function RunRecordTools({
                   Due (UTC)
                   <input
                     type="datetime-local"
-                    disabled={busy}
+                    disabled={blocked}
                     value={item.dueAt.slice(0, 16)}
                     onChange={(event) =>
                       setDraft({
@@ -282,7 +286,7 @@ export function RunRecordTools({
                 <label className="check-option">
                   <input
                     type="checkbox"
-                    disabled={busy}
+                    disabled={blocked}
                     checked={item.completed}
                     onChange={(event) =>
                       setDraft({
@@ -298,7 +302,7 @@ export function RunRecordTools({
                   Completed
                 </label>
                 <button
-                  disabled={busy}
+                  disabled={blocked}
                   aria-label={`Remove follow-up ${index + 1}`}
                   onClick={() =>
                     setDraft({
@@ -312,7 +316,7 @@ export function RunRecordTools({
               </div>
             ))}
             <button
-              disabled={busy || draft.nextActions.length >= 20}
+              disabled={blocked || draft.nextActions.length >= 20}
               onClick={() =>
                 setDraft({
                   ...draft,
@@ -330,7 +334,7 @@ export function RunRecordTools({
               <textarea
                 rows={3}
                 value={draft.references.join('\n')}
-                disabled={busy}
+                disabled={blocked}
                 onChange={(event) =>
                   setDraft({ ...draft, references: event.target.value.split('\n').filter(Boolean) })
                 }
@@ -339,7 +343,7 @@ export function RunRecordTools({
             <label className="check-option">
               <input
                 type="checkbox"
-                disabled={busy}
+                disabled={blocked}
                 checked={draft.delivered}
                 onChange={(event) => setDraft({ ...draft, delivered: event.target.checked })}
               />{' '}
@@ -356,7 +360,7 @@ export function RunRecordTools({
             </button>
             <button
               className="primary"
-              disabled={busy || !draft.summary.trim()}
+              disabled={blocked || !draft.summary.trim()}
               onClick={() => void save()}
             >
               Save handover details
