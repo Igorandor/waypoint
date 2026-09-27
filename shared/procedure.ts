@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { taskExecutionState } from './task-insights.js';
+export const procedureShapeLimits = { steps: 30, checklistItems: 12, tags: 8 } as const;
 export const assertionDefinitions = {
   'capture-present': { title: 'Observation was captured', source: null, threshold: false },
   'monitor-running': { title: 'System monitor is running', source: 'health', threshold: false },
@@ -96,7 +97,7 @@ const checklistSchema = z
     items: z
       .array(z.object({ id: identifier, text: title, required: z.boolean() }).strict())
       .min(1)
-      .max(12),
+      .max(procedureShapeLimits.checklistItems),
     requireNote: z.boolean(),
     reference: referenceSchema.default(''),
   })
@@ -140,8 +141,8 @@ export const procedureBodySchema = z
           .max(24)
           .regex(/^[a-zA-Z0-9 _-]+$/),
       )
-      .max(8),
-    steps: z.array(procedureStepSchema).min(1).max(30),
+      .max(procedureShapeLimits.tags),
+    steps: z.array(procedureStepSchema).min(1).max(procedureShapeLimits.steps),
   })
   .strict()
   .superRefine((body, context) => {

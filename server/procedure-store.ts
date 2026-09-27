@@ -10,6 +10,7 @@ import {
 } from '../shared/procedure.js';
 import { ApiError } from './upstream.js';
 import { readBoundedJson } from './bounded-file.js';
+import { procedureBodyFitsRequest } from '../shared/procedure-import.js';
 
 const storedSchema = z
   .object({
@@ -129,6 +130,11 @@ export class ProcedureStore {
   }
   async create(owner: string, input: ProcedureBody, note = 'Initial version') {
     const body = procedureBodySchema.parse(input);
+    if (!procedureBodyFitsRequest(body))
+      throw new ApiError(
+        413,
+        'The procedure body exceeds the 256 KiB request limit after validation.',
+      );
     return this.exclusive(owner, async () => {
       if ((await this.list(owner)).length >= 100)
         throw new ApiError(409, 'This account has reached 100 stored procedures.');
@@ -150,6 +156,11 @@ export class ProcedureStore {
   }
   async revise(owner: string, id: string, revision: number, input: ProcedureBody, note: string) {
     const body = procedureBodySchema.parse(input);
+    if (!procedureBodyFitsRequest(body))
+      throw new ApiError(
+        413,
+        'The procedure body exceeds the 256 KiB request limit after validation.',
+      );
     return this.exclusive(owner, async () => {
       const record = await this.read(owner, id);
       if (record.revision !== revision)

@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react';
 import { Archive, Copy, Download, Edit3, Play, Plus, RefreshCw, Upload } from 'lucide-react';
 import {
   observationSources,
-  procedureImportSchema,
   type Procedure,
   type ProcedureBody,
   type ProcedureSummary,
 } from '../../shared/procedure';
+import {
+  parseProcedureImportText,
+  PROCEDURE_IMPORT_TEXT_BYTES,
+} from '../../shared/procedure-import';
 import { request, download } from '../api';
 import { Badge, ErrorBox, Loading, Modal, PageHeader } from '../components/ui';
 import { ProcedureEditor, blankProcedure } from './ProcedureEditor';
@@ -91,18 +94,8 @@ export function ProcedureLibrary() {
   }
   async function importDefinition() {
     await perform(async () => {
-      if (new TextEncoder().encode(importText).length > 100000)
-        throw new Error('The import exceeds 100 KB.');
-      let data: unknown;
-      try {
-        data = JSON.parse(importText);
-      } catch {
-        throw new Error('Paste a valid Waypoint procedure JSON document.');
-      }
-      const parsed = procedureImportSchema.safeParse(data);
-      if (!parsed.success)
-        throw new Error(parsed.error.issues.map((issue) => issue.message).join(' '));
-      const record = await request('procedures/import', parsed.data);
+      const parsed = parseProcedureImportText(importText);
+      const record = await request('procedures/import', parsed);
       show(record);
       setImportText('');
       setImporting(false);
@@ -420,7 +413,7 @@ export function ProcedureLibrary() {
               <textarea
                 disabled={busy}
                 rows={12}
-                maxLength={100000}
+                maxLength={PROCEDURE_IMPORT_TEXT_BYTES}
                 value={importText}
                 onChange={(event) => setImportText(event.target.value)}
               />

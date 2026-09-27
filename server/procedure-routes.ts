@@ -1,6 +1,7 @@
 import type express from 'express';
 import { z } from 'zod';
 import { procedureBodySchema, procedureImportSchema } from '../shared/procedure.js';
+import { procedureBodyFitsRequest } from '../shared/procedure-import.js';
 import { ProcedureStore } from './procedure-store.js';
 import { RunEngine } from './run-engine.js';
 import { ApiError, type IrisClient } from './upstream.js';
@@ -25,6 +26,11 @@ export function procedureRoutes(app: express.Express, engine: RunEngine, client:
   );
   app.post('/api/procedures/import', async (req, res) => {
     const imported = procedureImportSchema.parse(req.body);
+    if (!procedureBodyFitsRequest(imported.body))
+      throw new ApiError(
+        413,
+        'The procedure body exceeds the 256 KiB request limit after validation.',
+      );
     res
       .status(201)
       .json(

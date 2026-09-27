@@ -66,3 +66,7 @@ Native target lists now stay bound to their path/query scope. Same-source transi
 ## Stored runs and procedure draft ownership — September 27, 2026
 
 The current full `npm run check` passes frontend/server builds and **215 tests**. Stored-run shape validation and legacy/evidence compatibility are documented in [stored run validation](STORED_RUN_VALIDATION.md). The procedure editor now pins its write ID and revision to its draft and blocks editing during refresh; see [procedure editor ownership and its standalone actual-component runner](PROCEDURE_EDITOR_OWNERSHIP.md). Earlier counts in this record describe historical checkpoints. No existing run/procedure data or native instance was used for these checks.
+
+## Procedure import/export bounds — September 27, 2026
+
+The current full check passes frontend/server builds and **220 tests**. Procedure imports now accept supported own exports within derived UTF-8 and formatting limits; the global 256 KiB request limit is unchanged, with only the exact POST import envelope receiving its 41-byte overhead. See [procedure import/export limits and exact-boundary verification](PROCEDURE_IMPORT_LIMITS.md). Earlier counts remain historical checkpoints. No existing data or native procedure execution was involved.

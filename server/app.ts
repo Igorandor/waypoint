@@ -13,6 +13,7 @@ import { consolePreview } from './activity.js';
 import { procedureRoutes } from './procedure-routes.js';
 import { commandTarget } from './target-reservations.js';
 import { commandRoutes } from './command-routes.js';
+import { PROCEDURE_IMPORT_REQUEST_BYTES } from '../shared/procedure-import.js';
 export type AppOptions = {
   irisUrl: string;
   instanceId?: string;
@@ -90,7 +91,16 @@ export function createApp(settings: AppOptions) {
     }
     next();
   });
-  app.use(express.json({ limit: 256 * 1024 }), cookieParser());
+  const standardJson = express.json({ limit: 256 * 1024 });
+  const procedureImportJson = express.json({ limit: PROCEDURE_IMPORT_REQUEST_BYTES });
+  app.use((req, res, next) => {
+    // The import envelope adds 41 bytes around a body accepted by ordinary creation.
+    const parser =
+      req.method === 'POST' && req.path === '/api/procedures/import'
+        ? procedureImportJson
+        : standardJson;
+    parser(req, res, next);
+  }, cookieParser());
   app.get('/api/health', (_req, res) =>
     res.json({ ok: true, app: 'Waypoint', target: new URL(settings.irisUrl).host }),
   );
