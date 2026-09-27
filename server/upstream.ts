@@ -25,7 +25,7 @@ export class IrisClient {
     private endpoint: string,
     private send: typeof fetch = fetch,
   ) {}
-  async request(auth: string, command: Operation) {
+  async request(auth: string, command: Operation, callerSignal?: AbortSignal) {
     validateOperation(command);
     if (
       this.executing.size >= 16 ||
@@ -48,11 +48,17 @@ export class IrisClient {
       }
       let response: Response;
       try {
+        const deadline = AbortSignal.timeout(20_000);
+        const signal =
+          command.method === 'GET' && callerSignal
+            ? AbortSignal.any([deadline, callerSignal])
+            : deadline;
+        signal.throwIfAborted();
         response = await this.send(destination, {
           method: command.method,
           body: content ? JSON.stringify(content) : undefined,
           redirect: 'error',
-          signal: AbortSignal.timeout(20_000),
+          signal,
           headers: {
             Authorization: auth,
             Accept: 'application/json',

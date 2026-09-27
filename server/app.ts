@@ -116,7 +116,11 @@ export function createApp(settings: AppOptions) {
   commandRoutes(app, engine, client);
   app.post('/api/iris', async (req, res) => {
     const command = operation.parse(req.body) as Operation;
-    if (command.method !== 'GET' && command.path !== '/v2/security/audit/records') throw new ApiError(409, 'Prepare and confirm this change through the command review endpoint. Direct writes are not accepted.');
+    if (command.method !== 'GET' && command.path !== '/v2/security/audit/records')
+      throw new ApiError(
+        409,
+        'Prepare and confirm this change through the command review endpoint. Direct writes are not accepted.',
+      );
     if (
       (command.method === 'GET' || command.path === '/v2/security/audit/records') &&
       parameters(command.path, command.method).some((field) => field.name === 'maxRows') &&
@@ -138,16 +142,27 @@ export function createApp(settings: AppOptions) {
         ...session.activity,
       ].slice(0, 100);
     };
+    // Only this caller-owned read follows its response lifetime. Durable work has no signal.
+    const disconnected = command.method === 'GET' ? new AbortController() : undefined;
+    const abandonRead = () => {
+      if (!res.writableEnded) disconnected?.abort();
+    };
+    if (disconnected) {
+      res.once('close', abandonRead);
+      if (res.destroyed) abandonRead();
+    }
     try {
       const result = await engine.reservations.withTarget(commandTarget(command), undefined, () =>
-        client.request(session.auth, command),
+        client.request(session.auth, command, disconnected?.signal),
       );
-      if (command.method !== 'GET' || result.console?.length)
+      if (!disconnected?.signal.aborted && (command.method !== 'GET' || result.console?.length))
         receipt(result.status, result.console);
-      res.json(result);
+      if (!res.destroyed) res.json(result);
     } catch (error) {
-      receipt(error instanceof ApiError ? error.status : 500);
-      throw error;
+      if (!disconnected?.signal.aborted) receipt(error instanceof ApiError ? error.status : 500);
+      if (!res.destroyed) throw error;
+    } finally {
+      if (disconnected) res.off('close', abandonRead);
     }
   });
   app.use('/api', () => {
