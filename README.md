@@ -195,3 +195,7 @@ See [data views and limits](docs/DATA_VIEWS.md).
 Open Runbooks → New run → Observe an instance. Choose one to eight sources and optionally name the plan. Selection order determines execution order; deselect and reselect a source to move it to the end. Review the displayed plan and create it. Creation only stores the plan. Run next step performs exactly one selected read and stores its result. Available sources are identity, health, host capacity, messages, processes, task definitions, application routes and journal files. Reopen the run after a reload to inspect its saved evidence. Custom sources cannot be inserted into maintenance templates. Lists are capped at 100 rows where supported; the existing per-step report limits still apply.
 
 See [the original project idea](IDEA.md) and [operational workflows](docs/WORKFLOWS.md) for the intended use and evidence boundaries.
+
+## Presentation materials
+
+See the [video publication kit](docs/VIDEO.md), [Developer Community article draft](docs/ARTICLE.md), and [online-demo status](docs/ONLINE_DEMO.md). Publication is a separate step.
