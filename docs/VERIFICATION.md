@@ -74,3 +74,7 @@ The current full check passes frontend/server builds and **220 tests**. Procedur
 ## Pending login ownership — September 27, 2026
 
 The full check now passes frontend/server builds and **226 tests**, including six actual HTTP middleware regressions for login completing after logout, session replacement or expiry. Rejected late authentication cannot issue a replacement session cookie. See [login replacement ownership and limits](LOGIN_REPLACEMENT_OWNERSHIP.md). Tests use synthetic native responses and new temporary directories; no existing data or native operation is used.
+
+## Follow-up deadline ordering — September 27, 2026
+
+The full check passes frontend/server builds and **227 tests**. One added engine/store/summary regression verifies chronological ordering and overdue detection for accepted UTC timestamps with different fractional precision. The regular UTC-minute editor is unchanged. See [handover deadline boundaries and verification](HANDOVER_DEADLINES.md).

@@ -208,7 +208,7 @@ export function summarize(run: Run): RunSummary {
     nextFollowUpAt: run.handover?.nextActions
       .filter((action) => !action.completed && action.dueAt)
       .map((action) => action.dueAt)
-      .sort()[0],
+      .sort((left, right) => Date.parse(left) - Date.parse(right))[0],
     unresolvedSteps: run.steps.filter(
       (step) => step.status === 'uncertain' || step.status === 'running',
     ).length,
