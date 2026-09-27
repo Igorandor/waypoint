@@ -97,6 +97,7 @@ export function TaskWorkspace() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [listError, setListError] = useState('');
   const [search, setSearch] = useState('');
   const [type, setType] = useState('all');
   const [suspension, setSuspension] = useState('all');
@@ -111,18 +112,18 @@ export function TaskWorkspace() {
   const sequence = useRef(0);
   async function loadList() {
     setLoading(true);
-    setError('');
     try {
       const value = (await iris('/v2/tasks', { maxRows: '1000' })).data;
       if (!Array.isArray(value)) throw new Error('The task inventory response is not a list.');
       setTasks(value);
       setListAt(new Date().toISOString());
+      setListError('');
     } catch (cause) {
       if (cause instanceof RequestError && cause.status === 403) {
         setTasks([]);
         setListAt('');
       }
-      setError((cause as Error).message);
+      setListError((cause as Error).message);
     } finally {
       setLoading(false);
     }
@@ -217,6 +218,7 @@ export function TaskWorkspace() {
       )}
       <div className="task-workspace">
         <aside className="panel task-inventory">
+          {listError && <ErrorBox error={listError} />}
           <label className="field">
             <span>
               <Search size={14} /> Find task
@@ -247,10 +249,12 @@ export function TaskWorkspace() {
               </select>
             </label>
           </div>
-          <p className="muted">
-            {list.length} of {tasks.length} loaded tasks
-            {tasks.length === 1000 ? ' · inventory limit reached' : ''}
-          </p>
+          {listAt && (
+            <p className="muted">
+              {list.length} of {tasks.length} loaded tasks
+              {tasks.length === 1000 ? ' · inventory limit reached' : ''}
+            </p>
+          )}
           {loading && !tasks.length ? (
             <Loading />
           ) : (
@@ -275,7 +279,10 @@ export function TaskWorkspace() {
               </button>
             ))
           )}
-          {!loading && !list.length && <p>No loaded tasks match these filters.</p>}
+          {!loading && !listAt && (
+            <p>Task inventory unavailable. Use Refresh inventory to try again.</p>
+          )}
+          {!loading && listAt && !list.length && <p>No loaded tasks match these filters.</p>}
           {listAt && <small>Inventory read {new Date(listAt).toLocaleTimeString()}</small>}
         </aside>
         <section className="task-dossier" aria-label="Selected task dossier">
@@ -541,6 +548,17 @@ function TaskHistory({
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [selected, setSelected] = useState<HistoryRow>();
+  if (error)
+    return (
+      <section className="panel">
+        <h3>Execution history unavailable</h3>
+        <ErrorBox error={error} />
+        <p>
+          Use Refresh task to read the sources again. No execution totals are available from this
+          read.
+        </p>
+      </section>
+    );
   const stats = historyStatistics(rows);
   const visible = rows.filter(
     (row) =>
@@ -555,7 +573,6 @@ function TaskHistory({
   return (
     <section className="panel">
       <h3>Loaded execution history</h3>
-      {error && <ErrorBox error={error} />}
       <p className="muted">
         Up to 200 records for this task. Durations use native wall-clock timestamps; daylight-saving
         transitions can affect them.{' '}
@@ -645,7 +662,13 @@ function TaskHistory({
           </tbody>
         </table>
       </div>
-      {!visible.length && <p>No loaded records match these filters.</p>}
+      {!visible.length && (
+        <p>
+          {rows.length
+            ? 'No loaded records match these filters.'
+            : 'No execution records were returned for this task.'}
+        </p>
+      )}
       {selected && (
         <div className="task-history-detail">
           <div className="section-heading">

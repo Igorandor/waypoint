@@ -8,6 +8,7 @@ const results = [];
 const requests = [];
 const status = { list: 200, configuration: 200, state: 200, history: 200 };
 let holdSeven = false;
+let emptyHistory = false;
 const held = [];
 let exported;
 URL.createObjectURL = (blob) => {
@@ -43,7 +44,11 @@ window.fetch = async (_url, init) => {
           : [{ TaskId: +id, Result: `Protected history ${id}`, LastStart: '2026-09-27 12:00:00' }];
   const response =
     status[source] === 200
-      ? Response.json({ data, status: 200, console: [] })
+      ? Response.json({
+          data: source === 'history' && emptyHistory ? [] : data,
+          status: 200,
+          console: [],
+        })
       : Response.json({ error: `${source} denied ${status[source]}` }, { status: status[source] });
   if (holdSeven && id === '7') return new Promise((resolve) => held.push(() => resolve(response)));
   return response;
@@ -105,10 +110,26 @@ async function run() {
     content().includes('Allowed configuration 7') &&
       (await exportDossier()).configuration.data.Name === 'Allowed configuration 7',
   );
+  await click('Refresh task');
+  await settle(
+    () => content().includes('Allowed configuration 7'),
+    'detail refresh after inventory denial',
+  );
+  check(
+    'refreshing the dossier cannot erase inventory denial or describe it as an empty successful list',
+    content().includes('list denied 403') &&
+      content().includes('Task inventory unavailable') &&
+      !content().includes('No loaded tasks match') &&
+      !content().includes('0 of 0 loaded tasks'),
+  );
 
   status.list = 200;
   await click('Refresh inventory');
   await settle(() => content().includes('List-only task 7'), 'inventory recovery');
+  check(
+    'successful explicit inventory read clears the inventory error',
+    !content().includes('list denied 403') && !content().includes('Task inventory unavailable'),
+  );
   status.list = 500;
   await click('Refresh inventory');
   await settle(() => content().includes('list denied 500'), 'inventory500');
@@ -133,7 +154,33 @@ async function run() {
       !!partialHistory.state.data &&
       !JSON.stringify(partialHistory).includes('Protected history 7'),
   );
+  await click('History');
+  check(
+    'unavailable history shows its reason without metrics, filters or filtered export',
+    content().includes('Execution history unavailable') &&
+      content().includes('history denied 403') &&
+      !content().includes('Known successes') &&
+      !document.querySelector('.task-history-filters') &&
+      !content().includes('Export filtered history'),
+  );
   status.history = 200;
+  emptyHistory = true;
+  await click('Refresh task');
+  await settle(
+    () => content().includes('No execution records were returned'),
+    'successful empty history',
+  );
+  const records = [...document.querySelectorAll('dt')].find(
+    (node) => node.textContent === 'Records',
+  );
+  check(
+    'successfully read empty history keeps zero totals and permits an explicitly empty export',
+    records?.nextElementSibling?.textContent === '0' &&
+      content().includes('Export filtered history') &&
+      !content().includes('Execution history unavailable'),
+  );
+  emptyHistory = false;
+  await click('Readiness');
   status.configuration = 403;
   await click('Refresh task');
   await settle(() => content().includes('configuration denied 403'), 'configuration403');

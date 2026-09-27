@@ -4,7 +4,7 @@ import { build } from 'esbuild';
 
 const origin = 'http://127.0.0.1:3430';
 const tasks = process.argv.includes('--tasks');
-const expected = tasks ? 8 : 12;
+const expected = 12;
 const label = tasks ? 'task inventory and dossier' : 'native observation hook';
 const bundle = await build({
   entryPoints: [
