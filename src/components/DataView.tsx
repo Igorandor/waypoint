@@ -6,7 +6,7 @@ export function Evidence({ value, level = 0 }: { value: any; level?: number }) {
   if (typeof value === 'boolean')
     return <span className={'badge ' + (value ? 'good' : 'neutral')}>{value ? 'Yes' : 'No'}</span>;
   if (typeof value !== 'object') return <span className="evidence-text">{String(value)}</span>;
-  if (level > 6) return <span>Nested evidence is available in the export.</span>;
+  if (level > 6) return <span>Nested data is available in the export.</span>;
   const items = Object.entries(value);
   return (
     <dl className="waypoint-evidence">
@@ -22,7 +22,7 @@ export function Evidence({ value, level = 0 }: { value: any; level?: number }) {
           </dd>
         </div>
       ))}
-      {items.length > 100 && <p>First 100 entries shown; export contains the loaded evidence.</p>}
+      {items.length > 100 && <p>First 100 entries shown; export contains all loaded data.</p>}
     </dl>
   );
 }
@@ -56,7 +56,7 @@ export function DataView({
       <div className="evidence-toolbar">
         {list && (
           <input
-            aria-label="Filter evidence"
+            aria-label="Filter results"
             placeholder="Filter this result…"
             value={filter}
             onChange={(event) => {
@@ -66,7 +66,7 @@ export function DataView({
           />
         )}
         <button onClick={() => download('waypoint-' + kind + '.json', data)}>
-          Export evidence
+          Export results
         </button>
       </div>
       {rows ? (
@@ -95,7 +95,7 @@ export function DataView({
                   <span>
                     {typeof value === 'object' && value !== null
                       ? String(
-                          value.Description ?? value.FullName ?? value.State ?? 'Inspect evidence',
+                          value.Description ?? value.FullName ?? value.State ?? 'Show details',
                         )
                       : String(value)}
                   </span>

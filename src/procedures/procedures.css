@@ -1,0 +1,252 @@
+.procedure-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 290px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.procedure-list {
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+.procedure-option {
+  display: grid;
+  text-align: left;
+  width: 100%;
+  gap: 6px;
+  padding: 14px;
+}
+.procedure-option[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--tint);
+}
+.procedure-option span,
+.procedure-option small {
+  color: var(--muted);
+}
+.procedure-detail,
+.procedure-empty {
+  padding: 24px;
+  min-width: 0;
+}
+.procedure-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+.procedure-preview {
+  padding-left: 28px;
+}
+.procedure-preview > li {
+  padding: 18px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.procedure-preview p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.procedure-preview ul {
+  margin-top: 12px;
+  display: grid;
+  gap: 6px;
+}
+.procedure-preview small,
+.procedure-preview a {
+  display: block;
+  margin-top: 8px;
+}
+.procedure-detail footer {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+.procedure-version-note,
+.expected-outcome {
+  border-left: 3px solid var(--line);
+  padding: 12px 18px;
+  margin: 20px 0;
+}
+.procedure-editor fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.procedure-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.procedure-step-editor {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  margin: 16px 0;
+  display: grid;
+  gap: 14px;
+}
+.procedure-step-editor header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.procedure-step-editor small {
+  color: var(--muted);
+  line-height: 1.5;
+}
+.procedure-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0;
+}
+.checkpoint-items {
+  display: grid;
+  gap: 10px;
+}
+.checkpoint-item-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+.checkpoint-item-editor label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.checkpoint-item-editor input[type='checkbox'] {
+  width: auto;
+}
+.check-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.check-option input {
+  width: auto;
+}
+.run-checklist {
+  display: grid;
+  gap: 12px;
+  padding: 16px 0;
+}
+.run-checklist label {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+}
+.run-checklist input {
+  width: auto;
+  margin-top: 3px;
+}
+.procedure-editor footer {
+  display: flex;
+  justify-content: end;
+  gap: 12px;
+  margin-top: 24px;
+}
+@media (max-width: 850px) {
+  .procedure-layout {
+    grid-template-columns: 1fr;
+  }
+  .procedure-list {
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  .procedure-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .procedure-detail,
+  .procedure-empty {
+    padding: 16px;
+  }
+  .checkpoint-item-editor {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .checkpoint-item-editor > input {
+    grid-column: 1 / -1;
+  }
+}
+.planner-thresholds {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.procedure-readiness {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin: 16px 0;
+}
+.procedure-readiness details {
+  margin: 14px 0;
+}
+.plan-finding {
+  padding: 12px;
+  border-left: 3px solid var(--line);
+  margin: 12px 0;
+  background: var(--tint);
+}
+.plan-finding.review {
+  border-left-color: var(--accent);
+}
+.plan-finding h4 {
+  margin: 0 0 7px;
+}
+.plan-finding p {
+  margin: 0 0 7px;
+}
+@media (max-width: 600px) {
+  .planner-thresholds {
+    grid-template-columns: 1fr;
+  }
+}
+.procedure-version-comparison {
+  padding: 16px 0;
+}
+.version-change-notes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 12px 0;
+}
+.version-change-notes article {
+  background: var(--tint);
+  padding: 12px;
+  border-radius: 6px;
+}
+.version-change-notes h4 {
+  margin: 0 0 8px;
+}
+.version-step-change {
+  border: 1px solid var(--line);
+  padding: 14px;
+  margin: 12px 0;
+  border-radius: 6px;
+}
+.version-diff-table {
+  width: 100%;
+  table-layout: fixed;
+}
+.version-diff-table th:first-child {
+  width: 20%;
+}
+.version-diff-table pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  margin: 0;
+}
+@media (max-width: 600px) {
+  .version-change-notes {
+    grid-template-columns: 1fr;
+  }
+}

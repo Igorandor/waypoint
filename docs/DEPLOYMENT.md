@@ -20,7 +20,11 @@ Use HTTPS between the browser and gateway and between the gateway and a remote I
 
 Bind the server on a private interface or place it behind a trusted reverse proxy. Do not expose the included development credentials or IRIS development container. The example does not configure proxy trust; if your deployment terminates HTTPS at a proxy, pass `COOKIE_SECURE=true` explicitly and configure the public origin.
 
-Credentials remain in memory because HTTP Basic authentication is used against IRIS. This is an explicit design tradeoff: restarting the gateway signs everyone out; horizontal replicas require sticky sessions. A production multi-instance deployment should introduce a shared, encrypted short-lived token/session store and support the organization's identity policy. There is no claim that the example is a hardened multi-tenant service.
+Credentials remain in memory because HTTP Basic authentication is used against IRIS. Restarting the gateway signs everyone out and expires prepared command bodies. Run one gateway process per data directory: target locks and review bodies are process-owned, so sticky sessions do not make concurrent replicas safe.
+
+`compose.existing.yaml` runs only the gateway and its persistent record volume. Supply `IRIS_URL`, `IRIS_INSTANCE_ID` and an HTTPS `PUBLIC_ORIGIN`; it fixes secure cookies on and publishes the gateway to loopback. Configure your TLS reverse proxy to forward to that listener. The application validates that the upstream is a server origin without credentials, paths, queries or fragments. It rejects public HTTP origins and contradictory cookie settings at startup. A reverse proxy does not need trusted forwarded headers for this configuration.
+
+Preserve `IRIS_INSTANCE_ID` when replacing a gateway for the same IRIS instance: it partitions account records. Changing it intentionally creates a separate record scope and does not migrate or release old maintenance obligations. Preserve the entire data directory, including run files, `procedures` and `commands` subdirectories, during backup and recovery. Existing installations must run only `Waypoint.Installer.Install()` after loading the extension classes; `iris/configure.script` is a development-image provisioner which resets account passwords.
 
 ## Extension
 
@@ -32,7 +36,11 @@ Log reads use a fixed allowlist (`messages.log`, `alerts.log`), a maximum 1 MB t
 
 Waypoint's run journal is separate from the in-memory session/activity history. Set a unique `IRIS_INSTANCE_ID` and a writable `WAYPOINT_DATA_DIR`; the Docker stack provides a persistent `waypoint-runs` volume owned by the non-root Node user. Run exactly one gateway process per journal directory. Sticky sessions alone do not make the file store safe for shared replicas. See [runbook storage and recovery](RUNBOOKS.md) for bounds, archival and interrupted-operation handling.
 
-Back up the IRIS data volume with an IRIS-supported backup procedure. Replacing the portal container does not change IRIS records. Replacing the IRIS image may require a supported IRIS upgrade path; pin and test upgrades. `docker compose down` keeps the volume. Removing the volume destroys the demonstration instance's data.
+Back up the IRIS data volume with an IRIS-supported backup procedure. Replacing the portal container does not change IRIS records. Replacing the IRIS image may require a supported IRIS upgrade path; pin and test upgrades. `docker compose down` keeps the volume. Removing the volume destroys that instance's data.
+
+Run reports, command records and procedure definitions recheck native account identity on access. Reports require current Operate privilege; reports containing application configuration also require Secure. Command history checks the exact native endpoint/method privilege group from the pinned contract and, where evidence was read, its read endpoint too. Wallet uses Wallet, device configuration uses Manage, OAuth client definitions use OAuth2_Client, and ordinary security configuration uses Secure. Task run requests require Task; suspend/resume reviews additionally require Operate to read native task-info state. Revoked access does not leave a cached report readable through export.
+
+Command reviews store redacted proposed fields and native evidence, while the original body remains in memory for ten minutes. A restart cannot replay it. Journal dispatch is saved before the write; interrupted dispatch becomes uncertain. Named targets are serialized during revalidation, dispatch and readback. Active maintenance runs reserve application/task targets across accounts and restarts until restoration obligations are closed. These gateway safeguards do not lock out independent native IRIS administrators.
 
 `GET /api/health` reports gateway process availability, not successful IRIS authentication. The UI's refresh timestamps and individual API errors describe upstream availability. Use an authenticated external health probe if you need end-to-end monitoring.
 

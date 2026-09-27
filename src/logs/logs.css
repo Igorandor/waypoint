@@ -1,0 +1,121 @@
+.log-source-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 14px;
+}
+.log-source-controls .field {
+  margin: 0;
+  min-width: 160px;
+}
+.log-source-controls p {
+  flex-basis: 100%;
+  color: var(--muted);
+}
+.log-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+.log-filters .field {
+  margin: 0;
+}
+.log-lines {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: auto;
+  max-height: 600px;
+}
+.log-line {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr) 38px;
+  align-items: start;
+  border-bottom: 1px solid var(--line);
+  padding: 7px 4px;
+  gap: 8px;
+}
+.log-line:last-child {
+  border-bottom: 0;
+}
+.log-line pre,
+.log-pattern pre,
+.log-bookmark pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font-size: 12px;
+}
+.log-line-number {
+  color: var(--muted);
+  font: 12px monospace;
+  text-align: right;
+  padding: 4px;
+}
+.log-line button {
+  min-height: 28px;
+}
+.log-line.error {
+  border-left: 3px solid #b84e40;
+}
+.log-line.warning {
+  border-left: 3px solid #b88224;
+}
+.log-line.selected {
+  background: var(--tint);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.log-line mark {
+  background: #ffdf8b;
+  color: #352b16;
+  border-radius: 2px;
+}
+.log-pattern,
+.log-bookmark {
+  border: 1px solid var(--line);
+  padding: 15px;
+  border-radius: 7px;
+  margin: 12px 0;
+}
+.log-pattern pre,
+.log-bookmark pre {
+  margin: 12px 0;
+}
+.log-pattern > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.log-overlap {
+  max-height: 400px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.log-context .field {
+  max-width: 200px;
+}
+@media (max-width: 850px) {
+  .log-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .log-filters {
+    grid-template-columns: 1fr;
+  }
+  .log-line {
+    grid-template-columns: 35px minmax(0, 1fr) 30px;
+    gap: 5px;
+  }
+  .log-source-controls .field {
+    flex: 1;
+  }
+}
+.waypoint-log-investigation .panel {
+  padding: 18px;
+  margin-bottom: 18px;
+  min-width: 0;
+}

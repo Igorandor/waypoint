@@ -241,35 +241,36 @@ test('a run that changed nothing cannot overwrite a later administrator change',
   assert.equal((run.steps[3].evidence as { observed: boolean }).observed, true);
 });
 
-test('different runs cannot concurrently claim the same target write', async (t) => {
+test('a maintenance window reserves its target between steps and across accounts', async (t) => {
   const { engine, state } = await fixture(t);
   const other = { owner: 'second-operator', auth: 'Basic second' };
   const first = await engine.create(actor, 'application-window', '/sample', '/sample');
-  const second = await engine.create(other, 'application-window', '/sample', '/sample');
+  await assert.rejects(() => engine.create(other, 'application-window', '/sample', '/sample'), {
+    status: 409,
+  });
   await engine.next(actor, first.id);
-  await engine.next(other, second.id);
-  state.slow = true;
-  const results = await Promise.allSettled([
-    engine.next(actor, first.id),
-    engine.next(other, second.id),
-  ]);
+  await engine.next(actor, first.id);
+  await assert.rejects(() => engine.create(other, 'application-window', '/sample', '/sample'), {
+    status: 409,
+  });
   assert.equal(state.writes, 1);
-  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+  await engine.restore(actor, first.id, '/sample');
+  await engine.stop(actor, first.id);
+  await engine.create(other, 'application-window', '/sample', '/sample');
 });
 
-test('native-equivalent application names share the target operation lock', async (t) => {
-  const { engine, state } = await fixture(t);
+test('native-equivalent application names retain reservations after gateway restart', async (t) => {
+  const { engine, store, client, state } = await fixture(t);
   const first = await engine.create(actor, 'application-window', '/sample', '/sample');
-  const second = await engine.create(actor, 'application-window', '/SAMPLE//', '/SAMPLE//');
   await engine.next(actor, first.id);
-  await engine.next(actor, second.id);
-  state.slow = true;
-  const results = await Promise.allSettled([
-    engine.next(actor, first.id),
-    engine.next(actor, second.id),
-  ]);
-  assert.equal(state.writes, 1);
-  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+  const restarted = new RunEngine(store, client, engine.instance);
+  await assert.rejects(
+    () => restarted.create(actor, 'application-window', '/SAMPLE//', '/SAMPLE//'),
+    { status: 409 },
+  );
+  assert.equal(state.writes, 0);
+  await restarted.stop(actor, first.id);
+  await restarted.create(actor, 'application-window', '/SAMPLE//', '/SAMPLE//');
 });
 
 test('stored reports require current credentials and operating privileges', async (t) => {
@@ -380,51 +381,46 @@ test('secret masking cannot collapse distinct authenticated run owners', async (
   assert.equal(own.body.owner, 'ops_AreaRed1');
 });
 
-for (const firstOperation of ['reconcile', 'inspect'] as const) {
-  test(
-    'target lock excludes concurrent ' + firstOperation + ' and another run operation',
-    async (t) => {
-      const { engine, store, state } = await fixture(t);
-      const other = { owner: 'other-operator', auth: 'Basic other' };
-      const uncertain = await engine.create(actor, 'application-window', '/sample', '/sample');
-      await engine.next(actor, uncertain.id);
-      state.failAfterWrite = true;
-      await engine.next(actor, uncertain.id);
-      state.failAfterWrite = false;
-      const inspecting = await engine.create(other, 'application-window', '/SAMPLE//', '/SAMPLE//');
-      const before = await store.read(actor.owner, engine.instance, uncertain.id);
-      let entered!: () => void;
-      let release!: () => void;
-      const started = new Promise<void>((resolve) => {
-        entered = resolve;
-      });
-      const gate = new Promise<void>((resolve) => {
-        release = resolve;
-      });
-      state.beforeRead = async () => {
-        state.beforeRead = undefined;
-        entered();
-        await gate;
-      };
-      const reconcile = () => engine.reconcile(actor, uncertain.id);
-      const inspect = () => engine.next(other, inspecting.id);
-      const inFlight = firstOperation === 'reconcile' ? reconcile() : inspect();
-      try {
-        await started;
-        const reads = state.reads;
-        await assert.rejects(firstOperation === 'reconcile' ? inspect : reconcile, { status: 409 });
-        assert.equal(state.reads, reads, 'a conflicting operation must not reach IRIS');
-        assert.equal(state.writes, 1);
-        assert.deepEqual(await store.read(actor.owner, engine.instance, uncertain.id), before);
-      } finally {
-        release();
-        await inFlight;
-      }
-      if (firstOperation === 'reconcile') await inspect();
-      else await reconcile();
-      const recovered = await engine.get(actor, uncertain.id);
-      assert.equal(recovered.steps[1].status, 'done');
-      assert.equal(state.writes, 1, 'reconciliation must not replay the write');
-    },
+test('an uncertain window blocks generic commands throughout reconciliation', async (t) => {
+  const { engine, state } = await fixture(t);
+  const run = await engine.create(actor, 'application-window', '/sample', '/sample');
+  await engine.next(actor, run.id);
+  state.failAfterWrite = true;
+  await engine.next(actor, run.id);
+  state.failAfterWrite = false;
+  const target = { kind: 'application' as const, identity: '/SAMPLE//' };
+  let wrote = false;
+  await assert.rejects(
+    () =>
+      engine.reservations.withTarget(target, undefined, async () => {
+        wrote = true;
+      }),
+    { status: 409 },
   );
-}
+  await engine.reconcile(actor, run.id);
+  await assert.rejects(
+    () =>
+      engine.reservations.withTarget(target, undefined, async () => {
+        wrote = true;
+      }),
+    { status: 409 },
+  );
+  assert.equal(wrote, false);
+  assert.equal(state.writes, 1);
+});
+
+test('a corrupt run cannot silently release a maintenance reservation', async (t) => {
+  const { engine, store } = await fixture(t);
+  const run = await engine.create(actor, 'application-window', '/sample', '/sample');
+  const directory = (await readdir(store.root))[0];
+  await writeFile(join(store.root, directory, run.id + '.json'), '{broken');
+  await assert.rejects(
+    () =>
+      engine.reservations.withTarget(
+        { kind: 'application', identity: '/other' },
+        undefined,
+        async () => {},
+      ),
+    /repair the journal/,
+  );
+});

@@ -38,7 +38,7 @@ export function WaypointShell(props: Props) {
           {props.navigation.find((n) => n.id === props.page)?.label ?? 'Status'}
         </span>
         <div className="waypoint-command-actions">
-          <button onClick={props.onCommand} aria-label="Go to workspace">
+          <button onClick={props.onCommand} aria-label="Find a tool">
             <Search size={16} />
             <span>Find a tool</span>
             <kbd>Ctrl K</kbd>

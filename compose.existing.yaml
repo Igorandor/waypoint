@@ -1,0 +1,25 @@
+# Uses an existing IRIS deployment and never starts or configures an IRIS container.
+name: waypoint-existing
+services:
+  portal:
+    build: .
+    restart: unless-stopped
+    environment:
+      IRIS_URL: ${IRIS_URL:?Set the existing IRIS server URL}
+      IRIS_INSTANCE_ID: ${IRIS_INSTANCE_ID:?Set a stable instance identifier}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set the HTTPS browser origin}
+      COOKIE_SECURE: 'true'
+      HOST: 0.0.0.0
+      PORT: 3100
+      WAYPOINT_DATA_DIR: /app/data
+    ports:
+      - '127.0.0.1:${WAYPOINT_PORT:-3300}:3100'
+    volumes:
+      - waypoint-records:/app/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  waypoint-records:
+    name: ${WAYPOINT_RUN_VOLUME:-waypoint-existing-records}

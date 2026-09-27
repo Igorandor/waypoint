@@ -4,6 +4,8 @@ import { ArrowRight, Check, Clock3, Download, RotateCcw, Square } from 'lucide-r
 import { nextStep, writeStep, type Run } from '../../../shared/runbook';
 import { download } from '../../api';
 import { Badge, ErrorBox, Modal } from '../../components/ui';
+import { RunRecordTools } from './RunRecordTools';
+import './records.css';
 
 export function RunDetail({
   run,
@@ -12,16 +14,18 @@ export function RunDetail({
 }: {
   run: Run;
   busy: boolean;
-  onAction: (action: string, body?: Record<string, string>) => Promise<boolean>;
+  onAction: (action: string, body?: Record<string, unknown>) => Promise<boolean>;
 }) {
   const [note, setNote] = useState(''),
     [restore, setRestore] = useState(false),
     [confirmation, setConfirmation] = useState('');
+  const [completedItems, setCompletedItems] = useState<string[]>([]);
   const index = nextStep(run),
     current = run.steps[index];
   const [selectedStep, setSelectedStep] = useState(Math.max(index, 0));
   useEffect(() => {
     if (index >= 0) setSelectedStep(index);
+    setCompletedItems([]);
   }, [index]);
   const inspected = run.steps[selectedStep];
   const label =
@@ -80,7 +84,7 @@ export function RunDetail({
         <nav className="step-index" aria-label="Run steps">
           {run.steps.map((step, i) => (
             <button
-              key={step.kind}
+              key={step.procedureStep?.id ?? step.kind}
               aria-pressed={selectedStep === i}
               onClick={() => setSelectedStep(i)}
               className={'step-' + step.status}
@@ -135,9 +139,38 @@ export function RunDetail({
       </div>
       {run.status === 'active' && current && (
         <div className="run-control">
+          {current.procedureStep?.kind === 'checklist' && (
+            <div className="run-checklist">
+              {current.procedureStep.items.map((item) => (
+                <label key={item.id}>
+                  <input
+                    type="checkbox"
+                    checked={completedItems.includes(item.id)}
+                    disabled={busy}
+                    onChange={(event) =>
+                      setCompletedItems(
+                        event.target.checked
+                          ? [...completedItems, item.id]
+                          : completedItems.filter((id) => id !== item.id),
+                      )
+                    }
+                  />
+                  <span>
+                    {item.text}
+                    {item.required ? ' (required)' : ''}
+                  </span>
+                </label>
+              ))}
+              {current.procedureStep.reference && (
+                <a href={current.procedureStep.reference} target="_blank" rel="noopener noreferrer">
+                  Open checkpoint reference
+                </a>
+              )}
+            </div>
+          )}
           {current.kind === 'checkpoint' && (
             <label className="field">
-              Maintenance note
+              Operator note
               <textarea
                 rows={3}
                 maxLength={2000}
@@ -176,10 +209,20 @@ export function RunDetail({
                 disabled={
                   busy ||
                   current.status === 'running' ||
-                  (current.kind === 'checkpoint' && !note.trim())
+                  (current.kind === 'checkpoint' &&
+                    (current.procedureStep?.kind !== 'checklist' ||
+                      current.procedureStep.requireNote) &&
+                    !note.trim()) ||
+                  (current.procedureStep?.kind === 'checklist' &&
+                    current.procedureStep.items.some(
+                      (item) => item.required && !completedItems.includes(item.id),
+                    ))
                 }
                 onClick={async () => {
-                  if (await onAction('next', { note })) setNote('');
+                  if (await onAction('next', { note, completedItems })) {
+                    setNote('');
+                    setCompletedItems([]);
+                  }
                 }}
               >
                 {busy
@@ -228,6 +271,7 @@ export function RunDetail({
           </div>
         ))}
       </details>
+      <RunRecordTools run={run} busy={busy} onAction={onAction} />
       {restore && (
         <Modal
           title="Restore the original state"

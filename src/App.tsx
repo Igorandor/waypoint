@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import {
   Activity,
   Workflow,
@@ -12,20 +12,54 @@ import {
 } from 'lucide-react';
 import { WaypointShell } from './layout/WaypointShell';
 import { Runbooks } from './pages/Runbooks';
-import { Operations } from './commands/Operations';
-import { Observations } from './commands/Observations';
 import { request } from './api';
 import { ErrorBox, Loading, Modal } from './components/ui';
+const ProcedureLibrary = lazy(() =>
+  import('./procedures/ProcedureLibrary').then((module) => ({ default: module.ProcedureLibrary })),
+);
+const CommandHistory = lazy(() =>
+  import('./commands/CommandHistory').then((module) => ({ default: module.CommandHistory })),
+);
+const TaskWorkspace = lazy(() =>
+  import('./tasks/TaskWorkspace').then((module) => ({ default: module.TaskWorkspace })),
+);
+const CapacityWatch = lazy(() =>
+  import('./capacity/CapacityWatch').then((module) => ({ default: module.CapacityWatch })),
+);
+const ApplicationWorkspace = lazy(() =>
+  import('./applications/ApplicationWorkspace').then((module) => ({
+    default: module.ApplicationWorkspace,
+  })),
+);
+const LogInvestigation = lazy(() =>
+  import('./logs/LogInvestigation').then((module) => ({ default: module.LogInvestigation })),
+);
+const Operations = lazy(() =>
+  import('./commands/Operations').then((module) => ({ default: module.Operations })),
+);
+const Observations = lazy(() =>
+  import('./commands/Observations').then((module) => ({ default: module.Observations })),
+);
+const OperationsDesk = lazy(() =>
+  import('./desk/OperationsDesk').then((module) => ({ default: module.OperationsDesk })),
+);
 const navigation = [
+  { id: 'operations-desk', label: 'Operations desk', icon: Activity },
   { id: 'runbooks', label: 'Runbooks', icon: Workflow },
-  { id: 'overview', label: 'Instance watch', icon: Activity },
+  { id: 'procedures', label: 'Procedure library', icon: Workflow },
+  { id: 'command-history', label: 'Command history', icon: ScrollText },
+  { id: 'overview', label: 'Instance status', icon: Activity },
+  { id: 'capacity-watch', label: 'Capacity watch', icon: Activity },
   { id: 'apps', label: 'Applications', icon: AppWindow },
+  { id: 'application-readiness', label: 'Application readiness', icon: AppWindow },
   { id: 'permissions', label: 'Permissions', icon: KeyRound },
   { id: 'security', label: 'Security', icon: Shield },
   { id: 'tasks', label: 'Scheduled tasks', icon: Timer },
+  { id: 'task-readiness', label: 'Task readiness', icon: Timer },
   { id: 'system', label: 'Processes and devices', icon: Server },
   { id: 'logs', label: 'Logs', icon: ScrollText },
-  { id: 'explorer', label: 'API observations', icon: Braces },
+  { id: 'log-investigation', label: 'Log investigation', icon: ScrollText },
+  { id: 'explorer', label: 'REST explorer', icon: Braces },
 ];
 function currentPage() {
   const value = location.hash.slice(1);
@@ -109,11 +143,27 @@ export default function App() {
         <div hidden={page !== 'runbooks'}>
           <Runbooks />
         </div>
-        {['apps', 'permissions', 'security', 'tasks', 'system'].includes(page) ? (
-          <Operations key={page} area={page} operator={session.info.username} />
-        ) : page !== 'runbooks' ? (
-          <Observations key={page} area={page} />
-        ) : null}
+        <Suspense fallback={<Loading />}>
+          {['apps', 'permissions', 'security', 'tasks', 'system'].includes(page) ? (
+            <Operations key={page} area={page} operator={session.info.username} />
+          ) : page === 'command-history' ? (
+            <CommandHistory />
+          ) : page === 'task-readiness' ? (
+            <TaskWorkspace />
+          ) : page === 'capacity-watch' ? (
+            <CapacityWatch />
+          ) : page === 'application-readiness' ? (
+            <ApplicationWorkspace />
+          ) : page === 'log-investigation' ? (
+            <LogInvestigation />
+          ) : page === 'operations-desk' ? (
+            <OperationsDesk />
+          ) : page === 'procedures' ? (
+            <ProcedureLibrary />
+          ) : page !== 'runbooks' ? (
+            <Observations key={page} area={page} />
+          ) : null}
+        </Suspense>
         {finder && (
           <Modal title="Find a tool" onClose={() => setFinder(false)}>
             <div className="tool-finder">
@@ -137,8 +187,8 @@ function SignIn({ error: external, onSignIn }: { error: string; onSignIn: (value
     <main className="waypoint-signin">
       <section>
         <p className="waypoint-signin-mark">waypoint / IRIS</p>
-        <h1>Operations, one step at a time.</h1>
-        <p>Open a runbook, inspect its evidence, and control each change to your instance.</p>
+        <h1>Sign in to Waypoint</h1>
+        <p>Run procedures and manage your IRIS instance.</p>
         <form
           onSubmit={async (event) => {
             event.preventDefault();
@@ -176,10 +226,10 @@ function SignIn({ error: external, onSignIn }: { error: string; onSignIn: (value
               />
             </label>
             {(error || external) && <ErrorBox error={error || external} />}
-            <button className="primary">{busy ? 'Connecting…' : 'Open operations desk'}</button>
+            <button className="primary">{busy ? 'Connecting…' : 'Sign in'}</button>
           </fieldset>
         </form>
-        <small>Uses your native IRIS permissions. This local demo requires SysAdmin API v2.</small>
+        <small>Your IRIS account permissions apply.</small>
       </section>
     </main>
   );

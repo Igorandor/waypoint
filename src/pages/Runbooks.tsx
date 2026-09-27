@@ -16,6 +16,7 @@ import { request } from '../api';
 import { Badge, ErrorBox, Loading, Modal, PageHeader } from '../components/ui';
 import { CreateRun } from '../features/runbooks/CreateRun';
 import { RunDetail } from '../features/runbooks/RunDetail';
+import { RunComparison } from '../features/runbooks/RunComparison';
 
 export function Runbooks() {
   const [runs, setRuns] = useState<RunSummary[]>([]),
@@ -27,6 +28,10 @@ export function Runbooks() {
     [search, setSearch] = useState(''),
     [filter, setFilter] = useState('all'),
     [choosing, setChoosing] = useState(false);
+  const [comparing, setComparing] = useState(false),
+    [archived, setArchived] = useState(false),
+    [from, setFrom] = useState(''),
+    [to, setTo] = useState('');
   async function refresh() {
     setError('');
     setLoading(true);
@@ -43,6 +48,14 @@ export function Runbooks() {
   }
   useEffect(() => {
     void refresh();
+    const created = (event: Event) => {
+      void select((event as CustomEvent<string>).detail);
+      void request('runs')
+        .then(setRuns)
+        .catch((cause) => setError(cause.message));
+    };
+    window.addEventListener('waypoint-run-created', created);
+    return () => window.removeEventListener('waypoint-run-created', created);
   }, []);
   async function select(id: string) {
     setBusy(true);
@@ -55,7 +68,7 @@ export function Runbooks() {
       setBusy(false);
     }
   }
-  async function action(action: string, body: Record<string, string> = {}) {
+  async function action(action: string, body: Record<string, unknown> = {}) {
     if (!run) return false;
     setBusy(true);
     setError('');
@@ -76,6 +89,9 @@ export function Runbooks() {
   const visible = runs.filter(
     (r) =>
       (filter === 'all' || (filter === 'active' ? r.status === 'active' : r.status !== 'active')) &&
+      !!r.archivedAt === archived &&
+      (!from || r.createdAt.slice(0, 10) >= from) &&
+      (!to || r.createdAt.slice(0, 10) <= to) &&
       (r.title + ' ' + r.target).toLowerCase().includes(search.toLowerCase()),
   );
   return (
@@ -84,6 +100,9 @@ export function Runbooks() {
         title="Run queue"
         description="Select a run to inspect its steps and recorded results."
       >
+        <button disabled={busy || runs.length < 2} onClick={() => setComparing(true)}>
+          Compare runs
+        </button>
         <button disabled={loading || busy} onClick={() => void refresh()}>
           <RefreshCw size={16} className={loading ? 'spin' : ''} /> Refresh runs
         </button>
@@ -132,6 +151,22 @@ export function Runbooks() {
               <option value="active">Active</option>
               <option value="closed">Completed or stopped</option>
             </select>
+            <label className="check-option">
+              <input
+                type="checkbox"
+                checked={archived}
+                onChange={(event) => setArchived(event.target.checked)}
+              />{' '}
+              Archived runs
+            </label>
+            <label className="field">
+              From (UTC)
+              <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
+            </label>
+            <label className="field">
+              To (UTC)
+              <input type="date" value={to} onChange={(event) => setTo(event.target.value)} />
+            </label>
           </div>
           {loading && !runs.length ? (
             <Loading />
@@ -251,6 +286,9 @@ export function Runbooks() {
               .catch((e) => setError(e.message));
           }}
         />
+      )}
+      {comparing && (
+        <RunComparison runs={runs} initial={run?.id} onClose={() => setComparing(false)} />
       )}
     </>
   );

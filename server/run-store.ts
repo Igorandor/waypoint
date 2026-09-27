@@ -1,9 +1,10 @@
-import { mkdir, open, readdir, readFile, rename, unlink } from 'node:fs/promises';
+import { mkdir, open, readdir, rename, unlink } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import type { Run, RunSummary } from '../shared/runbook.js';
 import { summarize } from '../shared/runbook.js';
 import { ApiError } from './upstream.js';
+import { readBoundedJson } from './bounded-file.js';
 
 /** One process owns a store. Files are atomically replaced; credentials are never persisted. */
 export class RunStore {
@@ -25,7 +26,8 @@ export class RunStore {
   }
   async read(owner: string, instance: string, id: string): Promise<Run> {
     try {
-      const run = JSON.parse(await readFile(this.file(owner, instance, id), 'utf8')) as Run;
+      const filename = this.file(owner, instance, id);
+      const run = (await readBoundedJson(filename, 4 * 1024 * 1024)) as Run;
       if (
         run.version !== 1 ||
         run.owner !== owner ||
@@ -48,13 +50,16 @@ export class RunStore {
   async save(run: Run) {
     let temporary: string | undefined;
     try {
+      const encoded = JSON.stringify(run, null, 2);
+      if (Buffer.byteLength(encoded) > 4 * 1024 * 1024)
+        throw new ApiError(413, 'The run reached its 4 MiB journal limit.');
       const directory = this.directory(run.owner, run.instance);
       await mkdir(directory, { recursive: true, mode: 0o700 });
       const file = this.file(run.owner, run.instance, run.id);
       temporary = file + '.' + randomUUID() + '.tmp';
       const handle = await open(temporary, 'wx', 0o600);
       try {
-        await handle.writeFile(JSON.stringify(run, null, 2));
+        await handle.writeFile(encoded);
         await handle.sync();
       } finally {
         await handle.close();
@@ -78,7 +83,10 @@ export class RunStore {
       throw error;
     }
     const results: RunSummary[] = [];
-    for (const name of files.filter((f) => f.endsWith('.json')).slice(0, 200))
+    const records = files.filter((file) => file.endsWith('.json'));
+    if (records.length > 1000)
+      throw new ApiError(409, 'The run directory exceeds its supported record limit.');
+    for (const name of records)
       results.push(summarize(await this.read(owner, instance, name.slice(0, -5))));
     return results.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }

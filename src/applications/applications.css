@@ -1,0 +1,281 @@
+.waypoint-applications {
+  min-width: 0;
+}
+.waypoint-applications .page-heading {
+  flex-wrap: wrap;
+}
+.waypoint-applications .inline-actions {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.waypoint-applications .panel {
+  padding: 18px;
+  margin-bottom: 18px;
+}
+.waypoint-applications label {
+  display: grid;
+  gap: 6px;
+}
+.application-inventory-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) repeat(2, minmax(140px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.application-table-scroll {
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid var(--line);
+}
+.application-table-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.application-table-scroll th {
+  text-align: left;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--tint);
+}
+.application-table-scroll th,
+.application-table-scroll td {
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.application-table-scroll td {
+  max-width: 380px;
+  overflow-wrap: anywhere;
+}
+.application-table-scroll td button {
+  text-align: left;
+  justify-content: flex-start;
+  overflow-wrap: anywhere;
+}
+.application-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 14px 0;
+}
+.application-pagination span {
+  margin-right: auto;
+  color: var(--muted);
+}
+.application-overview {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2fr;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.application-overview > div {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  min-width: 0;
+}
+.application-overview strong {
+  overflow-wrap: anywhere;
+}
+.application-view-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 3px 3px 12px;
+  margin-bottom: 16px;
+}
+.application-view-tabs button {
+  flex-shrink: 0;
+}
+.application-section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.application-section-heading h2 {
+  margin: 0;
+}
+.application-section-heading label {
+  min-width: 180px;
+}
+.application-readiness-list {
+  display: grid;
+  gap: 12px;
+}
+.application-readiness-list article {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+}
+.application-readiness-list header,
+.application-source-card header,
+.application-field-record header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: start;
+  justify-content: space-between;
+}
+.application-readiness-list h3 {
+  margin-bottom: 6px;
+}
+.application-readiness-list p {
+  margin: 6px 0;
+}
+.application-context-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.application-context-grid > * {
+  min-width: 0;
+}
+.application-wide {
+  grid-column: 1 / -1;
+}
+.application-definition {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0 0 18px;
+}
+.application-definition > div {
+  min-width: 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.application-definition dt {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+.application-definition dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.application-field-record {
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+.application-field-record h3 code {
+  display: inline-block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-left: 6px;
+}
+.application-comparison-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.application-comparison-filters label:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.application-prerequisites {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.application-prerequisites > label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+.application-prerequisites input {
+  margin-top: 5px;
+}
+.application-prerequisites span {
+  display: grid;
+  gap: 7px;
+}
+.application-prerequisites .badge {
+  display: inline-flex;
+  justify-self: start;
+}
+.application-procedure-preview {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  margin-top: 20px;
+}
+.application-procedure-preview li {
+  padding: 6px 0;
+}
+.application-procedure-preview p {
+  margin: 6px 0;
+}
+.application-source-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.application-source-card {
+  min-width: 0;
+  background: var(--panel);
+  padding: 18px;
+  border: 1px solid var(--line);
+}
+.application-source-card > small {
+  display: block;
+  margin: 12px 0;
+}
+.application-source-card details {
+  margin-top: 14px;
+}
+.application-observation-time {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 18px 0;
+}
+@media (max-width: 1000px) {
+  .application-source-grid {
+    grid-template-columns: 1fr;
+  }
+  .application-context-grid {
+    grid-template-columns: 1fr;
+  }
+  .application-inventory-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .application-inventory-filters label:first-child {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 560px) {
+  .application-inventory-filters {
+    grid-template-columns: 1fr;
+  }
+  .application-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .application-overview > div:last-child {
+    grid-column: 1 / -1;
+  }
+  .application-definition {
+    grid-template-columns: 1fr;
+  }
+  .application-pagination span {
+    flex-basis: 100%;
+  }
+  .application-section-heading label {
+    width: 100%;
+    min-width: 0;
+  }
+  .application-readiness-list article,
+  .application-prerequisites > label {
+    padding: 12px;
+  }
+}

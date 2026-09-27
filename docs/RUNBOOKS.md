@@ -37,15 +37,17 @@ Closing the tab, signing out or stopping the gateway does **not** automatically 
 - Passwords, cookies and session credentials are not written into run files. Responses use recursive credential-field masking. Operational logs can still contain application data.
 - The gateway uses a temporary file, file sync and atomic rename for each update. This protects against partial replacement; it is not a claim of distributed transactions or storage-level disaster recovery.
 - A per-run in-process lock rejects concurrent step submissions. Exactly one gateway process must own a data directory. Do not mount one run volume into multiple replicas.
-- Each account/instance can keep up to 100 runs. Each step's evidence is bounded to 100,000 JSON characters and journals retain the latest 200 events. Large evidence is replaced by an explicit size notice, never silently clipped into invalid JSON.
+- Each account/instance can keep up to 100 unarchived runs and 1,000 total run records. Each step's evidence is bounded to 100,000 JSON characters; a run is limited to 4 MiB and journals retain the latest 200 events. Large evidence is replaced by an explicit size notice, never silently clipped into invalid JSON.
 - The Docker `waypoint-runs` volume persists across portal container replacement. For local Node development, `WAYPOINT_DATA_DIR` defaults to `./data`, which Git ignores.
 
 Set a unique, stable `IRIS_INSTANCE_ID` for each deployment. Compose exposes it as `WAYPOINT_INSTANCE_ID`. Do not repoint that label at a different server with active runs. It is a configuration identifier, not cryptographic server identity.
 
-Back up both the IRIS data and run journal separately. To archive old runs, export reports, stop the gateway, preserve a backup of the data directory, then move selected **closed** run files into an offline archive. Never remove a run with pending restoration. The application does not automatically delete operational evidence.
+Back up both the IRIS data and run journal separately. Archive closed runs in the application to free active slots while retaining evidence. Active runs, unresolved steps and pending restoration cannot be archived. When the total record limit requires offline retention, stop the gateway, preserve a backup and move only reviewed closed records into a separate archive. Never remove an outstanding reservation or restoration obligation. The application does not automatically delete operational evidence.
 
 ## Reports and limitations
 
 Exported JSON contains the confirmed plan, operator, target, timestamps, original state, step outcomes, notes and journal events. It is an editable report, not a signed or immutable audit record. Native IRIS audit remains the authoritative source for security audit retention.
 
-Runs are account-scoped rather than shared team assignments. A report can be handed to another operator, but importing it never executes or recreates a plan: this version intentionally has no executable run import. To extend the product, add a typed template and a reviewed handler; do not accept arbitrary endpoints or shell commands in imported JSON.
+Runs are account-scoped. Owner-recorded handover details and follow-up actions can be exported as JSON or an escaped, printable HTML report. Recording delivery does not send a message or establish recipient acceptance. A package does not transfer execution authority or release a restoration obligation. Run evidence cannot be imported for execution.
+
+The procedure library imports definitions only: a strict closed schema of known observations, checklists and predefined assertions. It rejects arbitrary endpoints, executable code, unknown fields and non-HTTPS reference links. Versions are immutable; selecting an old version is explicit. Guided plans and version comparisons help review source/check dependencies before saving a new version. Assertions evaluate recorded observations; failed or unknown checks remain visible and do not automatically mutate or roll back IRIS.

@@ -42,9 +42,25 @@ const admin = await login(username, password);
 const call = (session: Session, path: string, method = 'GET', query = {}, body?: unknown) =>
   request('iris', { path, method, query, body }, session);
 async function adminCall(path: string, method: string, query: object, body?: unknown) {
-  const r = await call(admin, path, method, query, body);
-  assert.equal(r.status, 200, JSON.stringify(r.data));
-  return r.data.data;
+  if (method === 'GET') {
+    const r = await call(admin, path, method, query, body);
+    assert.equal(r.status, 200, JSON.stringify(r.data));
+    return r.data.data;
+  }
+  const review = await request(
+    'commands/review',
+    { command: { path, method, query, ...(body === undefined ? {} : { body }) } },
+    admin,
+  );
+  assert.equal(review.status, 201, JSON.stringify(review.data));
+  const result = await request(
+    'commands/' + review.data.id + '/execute',
+    { confirmation: review.data.confirmation },
+    admin,
+  );
+  assert.equal(result.status, 200, JSON.stringify(result.data));
+  assert.ok(['verified', 'acknowledged'].includes(result.data.status), JSON.stringify(result.data));
+  return result.data.observed ?? result.data.response;
 }
 let createdRole = false,
   createdUser = false;
@@ -73,16 +89,15 @@ try {
   const operator = await login(name, temporaryPassword);
   assert.equal((await request('runs', undefined, operator)).status, 200);
   assert.equal((await call(operator, '/extension/telemetry')).status, 200);
-  const denied = await call(
-    operator,
-    '/v2/security/role',
-    'PUT',
-    { name: roleName },
-    {
-      Resources: [{ Name: '%Admin_Secure', Permissions: 'U' }],
-    },
-  );
+  const forbiddenCommand = {
+    path: '/v2/security/role',
+    method: 'PUT',
+    query: { name: roleName },
+    body: { Resources: [{ Name: '%Admin_Secure', Permissions: 'U' }] },
+  };
+  const denied = await request('commands/review', { command: forbiddenCommand }, operator);
   assert.equal(denied.status, 403, JSON.stringify(denied.data));
+  assert.equal((await request('iris', forbiddenCommand, operator)).status, 409);
   assert.deepEqual(
     (await adminCall('/v2/security/role', 'GET', { name: roleName })).Resources,
     resources,

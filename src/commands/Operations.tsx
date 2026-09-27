@@ -3,7 +3,8 @@ import { targets, type Target } from '../../shared/commands';
 import { parameters, bodySchema, spec } from '../../shared/schema';
 import { newCommandBody, changedKeys } from '../../shared/command-draft';
 import { redact } from '../../shared/redaction';
-import { iris } from '../api';
+import { iris, request } from '../api';
+import { outcomeLabels, type CommandResult } from '../../shared/command-result';
 import { useData } from '../hooks';
 import { Badge, ErrorBox, Loading, PageHeader } from '../components/ui';
 import { Evidence, human } from '../components/DataView';
@@ -19,6 +20,7 @@ type Candidate = {
   confirm: string;
   identity: string;
   destructive: boolean;
+  review?: CommandResult;
 };
 export function Operations({ area, operator }: { area: string; operator: string }) {
   const options = targets.filter((target) => target.area === area);
@@ -148,7 +150,7 @@ function TargetStation({ target, operator }: { target: Target; operator: string 
     });
   }
   async function execute() {
-    if (!pending) return;
+    if (!pending?.review) return;
     const command = pending;
     setBusy(true);
     setError('');
@@ -169,32 +171,58 @@ function TargetStation({ target, operator }: { target: Target; operator: string 
               '. Reload the target and prepare a new command.',
           );
       }
-      const result = await iris(
-        command.path,
-        command.query,
-        command.method,
-        command.method === 'DELETE' ? undefined : command.body,
-      );
-      setReceipt({
-        command: command.title,
-        target:
-          command.identity ||
-          command.query[target.parameter] ||
-          command.body.Name ||
-          command.body.Alias ||
-          'Created record',
-        at: new Date().toISOString(),
-        status: result.status,
-        result: result.data,
-        console: result.console,
+      const result = await request('commands/' + command.review!.id + '/execute', {
+        confirmation: command.destructive ? command.confirm : command.review!.confirmation,
       });
+      setReceipt(result);
       setPending(undefined);
       setDetail(undefined);
       setIdentity('');
       records.refresh();
     } catch (e) {
       setError((e as Error).message);
-      setPending({ ...command, stage: 'prepare', confirm: '' });
+      try {
+        setReceipt(await request('commands/' + command.review!.id));
+      } catch {
+        setReceipt({
+          id: command.review!.id,
+          status: 'uncertain',
+          message:
+            'The outcome could not be retrieved. Open command history before sending another write.',
+        });
+      }
+      setPending(undefined);
+      setDetail(undefined);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function reviewCommand() {
+    if (!pending) return;
+    setBusy(true);
+    setError('');
+    try {
+      const selection =
+        target.id === 'processes'
+          ? {
+              pid: String(detail?.Pid ?? ''),
+              started: String(detail?.StartTimeUTC ?? ''),
+              job: String(detail?.JobNumber ?? ''),
+              user: String(detail?.UserName ?? ''),
+            }
+          : undefined;
+      const review = await request<CommandResult>('commands/review', {
+        command: {
+          path: pending.path,
+          method: pending.method,
+          query: pending.query,
+          body: pending.method === 'DELETE' ? undefined : pending.body,
+        },
+        selection,
+      });
+      setPending({ ...pending, stage: 'review', review });
+    } catch (cause) {
+      setError((cause as Error).message);
     } finally {
       setBusy(false);
     }
@@ -309,7 +337,7 @@ function TargetStation({ target, operator }: { target: Target; operator: string 
               <form
                 onSubmit={(event) => {
                   event.preventDefault();
-                  setPending({ ...pending, stage: 'review' });
+                  void reviewCommand();
                 }}
               >
                 <fieldset disabled={busy} className="command-inputs">
@@ -360,18 +388,24 @@ function TargetStation({ target, operator }: { target: Target; operator: string 
                 <Evidence
                   value={redact({
                     target: pending.query,
-                    before: pending.base
+                    before: pending.review?.before
                       ? Object.fromEntries(
-                          Object.keys(pending.body).map((key) => [key, pending.base?.[key]]),
+                          Object.keys(pending.review.proposed).map((key) => [
+                            key,
+                            pending.review?.before?.[key],
+                          ]),
                         )
                       : undefined,
                     proposed:
-                      pending.method === 'DELETE' ? 'Delete the selected record' : pending.body,
+                      pending.method === 'DELETE'
+                        ? 'Delete the selected record'
+                        : pending.review?.proposed,
+                    processGeneration: pending.review?.nativeIdentity,
                   })}
                 />
                 {pending.destructive && (
                   <label className="field">
-                    Type {pending.identity} to confirm
+                    Type {pending.review?.confirmation} to confirm
                     <input
                       aria-label="Confirm command target"
                       disabled={busy}
@@ -383,13 +417,19 @@ function TargetStation({ target, operator }: { target: Target; operator: string 
                 <div className="inline-actions">
                   <button
                     disabled={busy}
-                    onClick={() => setPending({ ...pending, stage: 'prepare', confirm: '' })}
+                    onClick={() =>
+                      setPending({ ...pending, stage: 'prepare', confirm: '', review: undefined })
+                    }
                   >
                     Back to preparation
                   </button>
                   <button
                     className="primary"
-                    disabled={busy || (pending.destructive && pending.confirm !== pending.identity)}
+                    disabled={
+                      busy ||
+                      !pending.review ||
+                      (pending.destructive && pending.confirm !== pending.review.confirmation)
+                    }
                     onClick={() => void execute()}
                   >
                     Execute once
@@ -453,10 +493,30 @@ function TargetStation({ target, operator }: { target: Target; operator: string 
           </>
         ) : receipt ? (
           <>
-            <h2>Command receipt</h2>
-            <Badge tone="good">Native response received</Badge>
+            <h2>Command result</h2>
+            <Badge tone={receipt.status === 'verified' ? 'good' : 'warning'}>
+              {outcomeLabels[receipt.status as keyof typeof outcomeLabels] ?? receipt.status}
+            </Badge>
+            <p>{receipt.message}</p>
             <Evidence value={receipt} />
-            <p>Reload and inspect the target to verify its current state.</p>
+            {['uncertain', 'acknowledged'].includes(receipt.status) && (
+              <button
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    setReceipt(await request('commands/' + receipt.id + '/reconcile', {}));
+                  } catch (cause) {
+                    setError((cause as Error).message);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                Read current result
+              </button>
+            )}
+            <a href="#command-history">Open command history</a>
           </>
         ) : (
           <div className="command-empty">

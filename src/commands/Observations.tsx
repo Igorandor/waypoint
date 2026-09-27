@@ -110,12 +110,12 @@ export function Observations({ area }: { area: string }) {
       <PageHeader
         title={
           area === 'logs'
-            ? 'Log observations'
+            ? 'Logs'
             : area === 'explorer'
-              ? 'Native API observations'
-              : 'Instance watch'
+              ? 'REST explorer'
+              : 'Instance status'
         }
-        description="Capture a bounded read from IRIS. Every result remains labelled with its source and collection time."
+        description="Choose a source to load its current data."
       />
       <section className="observation-controls panel">
         <form
@@ -163,7 +163,7 @@ export function Observations({ area }: { area: string }) {
               ))}
             </div>
             <button className="primary" disabled={busy}>
-              {busy ? 'Collecting…' : 'Collect observation'}
+              {busy ? 'Collecting…' : 'Load source'}
             </button>
           </fieldset>
         </form>

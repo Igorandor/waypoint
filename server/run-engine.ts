@@ -11,20 +11,30 @@ import { RunStore } from './run-store.js';
 import { IrisClient, ApiError, type Operation } from './upstream.js';
 import { redact } from '../shared/redaction.js';
 import { buildObservationPlan, defaultObservation } from '../shared/observation-plan.js';
+import {
+  evaluateAssertion,
+  procedureBodySchema,
+  type ProcedureVersion,
+} from '../shared/procedure.js';
+import { runTarget, TargetReservations } from './target-reservations.js';
+import { canArchive, handoverInputSchema, type HandoverInput } from '../shared/run-records.js';
 
 type Actor = { owner: string; auth: string };
 export class RunEngine {
   private busy = new Set<string>();
-  private targets = new Set<string>();
+  readonly reservations: TargetReservations;
   constructor(
     readonly store: RunStore,
     private client: IrisClient,
     readonly instance: string,
-  ) {}
+  ) {
+    this.reservations = new TargetReservations(store.root, instance);
+  }
   private key(actor: Actor, id: string) {
     return actor.owner + ':' + id;
   }
   private event(run: Run, action: string, message: string) {
+    run.revision = (run.revision ?? 0) + 1;
     run.updatedAt = new Date().toISOString();
     run.events.push({ at: run.updatedAt, action, message });
     run.events = run.events.slice(-200);
@@ -60,19 +70,7 @@ export class RunEngine {
       );
   }
   private async targetLocked<T>(run: Run, action: () => Promise<T>): Promise<T> {
-    if (run.template === 'observe') return action();
-    // IRIS web-application identifiers ignore case and trailing slashes.
-    const target =
-      run.template === 'application-window' ? this.applicationKey(run.target) : run.target;
-    const key = JSON.stringify([this.instance, run.template, target]);
-    if (this.targets.has(key))
-      throw new ApiError(409, 'Another run is operating on this target. Refresh before retrying.');
-    this.targets.add(key);
-    try {
-      return await action();
-    } finally {
-      this.targets.delete(key);
-    }
+    return this.reservations.withTarget(runTarget(run), run.id, action);
   }
   async get(actor: Actor, id: string) {
     if (this.busy.has(this.key(actor, id))) return this.read(actor, id);
@@ -119,10 +117,11 @@ export class RunEngine {
     if (definition.target === 'task' && !/^[1-9]\d*$/.test(target))
       throw new ApiError(400, 'Choose a valid task identifier.');
     return this.locked(actor, 'create', async () => {
-      if ((await this.store.list(actor.owner, this.instance)).length >= 100)
+      const stored = await this.store.list(actor.owner, this.instance);
+      if (stored.filter((run) => !run.archivedAt).length >= 100 || stored.length >= 1000)
         throw new ApiError(
           409,
-          'This account has reached 100 stored runs. Export and archive the data directory before creating more.',
+          'This account has reached 100 unarchived runs or 1000 total records. Archive closed runs before creating more.',
         );
       const time = new Date().toISOString();
       const run: Run = {
@@ -141,9 +140,87 @@ export class RunEngine {
         events: [],
       };
       this.event(run, 'created', 'Plan confirmed. No IRIS configuration has been changed.');
+      await this.reservations.withTarget(runTarget(run), undefined, () => this.store.save(run));
+      return run;
+    });
+  }
+  async fromProcedure(actor: Actor, procedureId: string, version: ProcedureVersion) {
+    const body = procedureBodySchema.parse(version.body);
+    return this.locked(actor, 'create', async () => {
+      const stored = await this.store.list(actor.owner, this.instance);
+      if (stored.length >= 1000 || stored.filter((run) => !run.archivedAt).length >= 100)
+        throw new ApiError(409, 'This account has reached 1000 stored runs.');
+      const now = new Date().toISOString();
+      const run: Run = {
+        version: 1,
+        id: randomUUID(),
+        owner: actor.owner,
+        instance: this.instance,
+        template: 'observe',
+        title: body.title,
+        target: 'Instance',
+        createdAt: now,
+        updatedAt: now,
+        status: 'active',
+        needsRestore: false,
+        procedure: { id: procedureId, version: structuredClone(version) },
+        steps: body.steps.map((step) => ({
+          kind: step.kind === 'checklist' ? 'checkpoint' : 'info',
+          title: step.title,
+          description: step.instruction,
+          status: 'pending',
+          attempts: 0,
+          procedureStep: structuredClone(step),
+        })),
+        events: [],
+      };
+      this.event(
+        run,
+        'created',
+        'Created from procedure version ' +
+          version.number +
+          '. The saved definition will not change this run.',
+      );
       await this.store.save(run);
       return run;
     });
+  }
+  private async procedureObservation(actor: Actor, source: string, target: string) {
+    switch (source) {
+      case 'identity': {
+        const info = await this.call(actor, '/info');
+        return {
+          apiVersion: info.apiVersion,
+          serverVersion: info.serverVersion,
+          product: info.product,
+        };
+      }
+      case 'health':
+        return this.call(actor, '/v2/monitor/dashboard/main');
+      case 'capacity':
+        return this.call(actor, '/extension/telemetry');
+      case 'messages':
+      case 'alerts':
+        return this.call(actor, '/extension/logs', { source, limit: '100' });
+      case 'applications':
+        return this.call(actor, '/v2/web-apps', { maxRows: '100' });
+      case 'tasks':
+        return this.call(actor, '/v2/tasks', { maxRows: '100' });
+      case 'processes':
+        return this.call(actor, '/v2/processes', { maxRows: '100' });
+      case 'journals':
+        return this.call(actor, '/v2/journal/files', { maxRows: '100' });
+      case 'application':
+        return this.call(actor, '/v2/web-app', { name: target });
+      case 'task':
+        return this.call(actor, '/v2/task', { id: target });
+      case 'task-state':
+        return this.call(actor, '/v2/task/info', { id: target });
+      case 'task-history':
+        return this.call(actor, '/v2/task/history', { taskId: target, maxRows: '50' });
+      default:
+        throw new ApiError(400, 'Unknown procedure observation source.');
+    }
   }
   private async call(
     actor: Actor,
@@ -181,7 +258,7 @@ export class RunEngine {
           bytes: json.length,
         };
   }
-  private async perform(actor: Actor, run: Run, note: string) {
+  private async perform(actor: Actor, run: Run, note: string, completedItems: string[] = []) {
     if (run.status !== 'active') throw new ApiError(409, 'This run is closed. Create a new run.');
     const index = nextStep(run),
       step = run.steps[index];
@@ -190,8 +267,20 @@ export class RunEngine {
       throw new ApiError(409, 'Reconcile this step before continuing.');
     // Recheck stored plans created by an earlier version before disabling a route.
     if (step.kind === 'disable-app') this.requireNonManagementApplication(run.target);
-    if (step.kind === 'checkpoint' && !note.trim())
+    if (step.kind === 'checkpoint' && !step.procedureStep && !note.trim())
       throw new ApiError(400, 'Record a maintenance note before continuing.');
+    const definition = step.procedureStep;
+    if (definition?.kind === 'checklist') {
+      if (definition.requireNote && !note.trim())
+        throw new ApiError(400, 'Record the required checkpoint note.');
+      if (
+        new Set(completedItems).size !== completedItems.length ||
+        completedItems.some((id) => !definition.items.some((item) => item.id === id))
+      )
+        throw new ApiError(400, 'Invalid checklist completion.');
+      if (definition.items.some((item) => item.required && !completedItems.includes(item.id)))
+        throw new ApiError(400, 'Complete every required checklist item before continuing.');
+    }
     step.status = 'running';
     step.startedAt = new Date().toISOString();
     step.attempts++;
@@ -201,7 +290,25 @@ export class RunEngine {
     let writeAttempted = false;
     try {
       let evidence: unknown;
-      if (writeStep(step.kind)) {
+      if (definition) {
+        if (definition.kind === 'observation')
+          evidence = await this.procedureObservation(actor, definition.source, definition.target);
+        else if (definition.kind === 'assertion') {
+          evidence = evaluateAssertion(
+            definition,
+            run.steps.find((source) => source.procedureStep?.id === definition.sourceStepId),
+          );
+        } else {
+          step.checklist = {
+            completed: completedItems,
+            note: note.trim(),
+            actor: actor.owner,
+            at: new Date().toISOString(),
+          };
+          step.note = note.trim();
+          evidence = step.checklist;
+        }
+      } else if (writeStep(step.kind)) {
         const current = await this.state(actor, run),
           desired = this.desired(run, step);
         const restoring = step.kind.startsWith('restore');
@@ -349,11 +456,11 @@ export class RunEngine {
     await this.store.save(run);
     return run;
   }
-  async next(actor: Actor, id: string, note = '') {
+  async next(actor: Actor, id: string, note = '', completedItems: string[] = []) {
     await this.get(actor, id);
     return this.locked(actor, id, async () => {
       const run = await this.read(actor, id);
-      return this.targetLocked(run, () => this.perform(actor, run, note));
+      return this.targetLocked(run, () => this.perform(actor, run, note, completedItems));
     });
   }
   async reconcile(actor: Actor, id: string) {
@@ -424,6 +531,84 @@ export class RunEngine {
         'stopped',
         'Operator closed the run. No pending state restoration was recorded.',
       );
+      await this.store.save(run);
+      return run;
+    });
+  }
+  async archive(actor: Actor, id: string, revision: number, archived: boolean) {
+    return this.locked(actor, id, async () => {
+      const run = await this.read(actor, id);
+      if ((run.revision ?? 0) !== revision)
+        throw new ApiError(409, 'This run changed. Reload before changing its archive state.');
+      const check = canArchive(run);
+      if (archived && !check.allowed) throw new ApiError(409, check.reason);
+      if (archived) run.archivedAt = new Date().toISOString();
+      else delete run.archivedAt;
+      this.event(
+        run,
+        archived ? 'archived' : 'unarchived',
+        archived
+          ? 'Archived the closed run. Its evidence is retained.'
+          : 'Restored this closed run to the history view.',
+      );
+      await this.store.save(run);
+      return run;
+    });
+  }
+  async handover(actor: Actor, id: string, revision: number, input: HandoverInput) {
+    const validated = handoverInputSchema.parse(input);
+    return this.locked(actor, id, async () => {
+      const run = await this.read(actor, id);
+      if ((run.revision ?? 0) !== revision)
+        throw new ApiError(409, 'This run changed. Reload before saving handover details.');
+      const time = new Date().toISOString();
+      run.handover = {
+        ...validated,
+        revision: (run.handover?.revision ?? 0) + 1,
+        updatedAt: time,
+        updatedBy: actor.owner,
+        ...(validated.delivered
+          ? { deliveryRecordedAt: run.handover?.deliveryRecordedAt ?? time }
+          : {}),
+      };
+      this.event(
+        run,
+        'handover-updated',
+        validated.delivered
+          ? 'Operator recorded package delivery. Execution ownership was not transferred.'
+          : 'Updated read-only handover details. Execution ownership was not transferred.',
+      );
+      await this.store.save(run);
+      return run;
+    });
+  }
+  async addNote(
+    actor: Actor,
+    id: string,
+    revision: number,
+    text: string,
+    category: 'observation' | 'decision' | 'follow-up',
+  ) {
+    return this.locked(actor, id, async () => {
+      const run = await this.read(actor, id);
+      if ((run.revision ?? 0) !== revision)
+        throw new ApiError(409, 'This run changed. Reload before adding a note.');
+      if ((run.notes?.length ?? 0) >= 100)
+        throw new ApiError(
+          409,
+          'This run has reached 100 notes. Export its record before adding further follow-up elsewhere.',
+        );
+      run.notes = [
+        ...(run.notes ?? []),
+        {
+          id: randomUUID(),
+          at: new Date().toISOString(),
+          author: actor.owner,
+          text: text.trim(),
+          category,
+        },
+      ];
+      this.event(run, 'note-added', 'Added an operator ' + category + ' note.');
       await this.store.save(run);
       return run;
     });

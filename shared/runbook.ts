@@ -1,3 +1,5 @@
+import type { ProcedureStep, ProcedureVersion } from './procedure.js';
+import type { Handover, RunNote } from './run-records.js';
 export type TemplateId = 'observe' | 'application-window' | 'task-window';
 export type StepKind =
   | 'info'
@@ -28,6 +30,8 @@ export type RunStep = {
   evidence?: unknown;
   error?: string;
   note?: string;
+  procedureStep?: ProcedureStep;
+  checklist?: { completed: string[]; note: string; actor: string; at: string };
 };
 export type RunEvent = { at: string; action: string; message: string };
 export type Run = {
@@ -45,11 +49,33 @@ export type Run = {
   original?: boolean;
   steps: RunStep[];
   events: RunEvent[];
+  procedure?: { id: string; version: ProcedureVersion };
+  archivedAt?: string;
+  closureNote?: string;
+  revision?: number;
+  handover?: Handover;
+  notes?: RunNote[];
 };
 export type RunSummary = Pick<
   Run,
-  'id' | 'title' | 'target' | 'template' | 'createdAt' | 'updatedAt' | 'status' | 'needsRestore'
-> & { completed: number; total: number; attention: boolean };
+  | 'id'
+  | 'title'
+  | 'target'
+  | 'template'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'status'
+  | 'needsRestore'
+  | 'archivedAt'
+> & {
+  completed: number;
+  total: number;
+  attention: boolean;
+  openFollowUps?: number;
+  nextFollowUpAt?: string;
+  unresolvedSteps?: number;
+  pendingStep?: string;
+};
 export const templates: Record<
   TemplateId,
   {
@@ -175,8 +201,26 @@ export function summarize(run: Run): RunSummary {
     updatedAt: run.updatedAt,
     status: run.status,
     needsRestore: run.needsRestore,
+    archivedAt: run.archivedAt,
     completed: run.steps.filter((s) => s.status === 'done' || s.status === 'skipped').length,
     total: run.steps.length,
-    attention: run.steps.some((s) => s.status === 'failed' || s.status === 'uncertain'),
+    openFollowUps: run.handover?.nextActions.filter((action) => !action.completed).length ?? 0,
+    nextFollowUpAt: run.handover?.nextActions
+      .filter((action) => !action.completed && action.dueAt)
+      .map((action) => action.dueAt)
+      .sort()[0],
+    unresolvedSteps: run.steps.filter(
+      (step) => step.status === 'uncertain' || step.status === 'running',
+    ).length,
+    pendingStep: run.steps.find((step) => !['done', 'skipped'].includes(step.status))?.title,
+    attention: run.steps.some(
+      (s) =>
+        s.status === 'failed' ||
+        s.status === 'uncertain' ||
+        (s.procedureStep?.kind === 'assertion' &&
+          ['failed', 'unknown'].includes(
+            (s.evidence as { outcome?: string } | undefined)?.outcome ?? '',
+          )),
+    ),
   };
 }

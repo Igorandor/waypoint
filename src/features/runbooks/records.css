@@ -1,0 +1,127 @@
+.run-record-tools {
+  border-top: 1px solid var(--line);
+  padding: 20px 24px;
+}
+.record-tool-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.run-check-results,
+.comparison-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 14px 0;
+}
+.run-handover-summary {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-top: 18px;
+}
+.run-handover-summary p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.run-handover-summary small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+}
+.run-notes {
+  margin-top: 20px;
+}
+.run-notes summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 10px 0;
+}
+.run-notes article {
+  border-left: 3px solid var(--line);
+  padding: 10px 14px;
+  margin: 14px 0;
+}
+.run-notes article p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.run-notes time {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+.run-notes .field {
+  margin-top: 12px;
+}
+.handover-editor {
+  display: grid;
+  gap: 14px;
+}
+.handover-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.7fr) auto auto;
+  gap: 10px;
+  align-items: end;
+  border: 1px solid var(--line);
+  padding: 12px;
+  border-radius: 10px;
+}
+.run-comparison-selectors {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+.run-comparison-selectors select {
+  min-width: 0;
+  width: 100%;
+}
+.source-comparison {
+  margin: 20px 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+.comparison-warning {
+  color: var(--accent);
+}
+.comparison-table {
+  width: 100%;
+  overflow: auto;
+}
+.comparison-table table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 550px;
+}
+.comparison-table th,
+.comparison-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  max-width: 220px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 800px) {
+  .handover-action {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .handover-action .field {
+    grid-column: 1 / -1;
+  }
+  .run-comparison-selectors {
+    grid-template-columns: 1fr;
+  }
+  .run-comparison-selectors > svg {
+    transform: rotate(90deg);
+    justify-self: center;
+  }
+  .run-record-tools {
+    padding: 16px;
+  }
+}

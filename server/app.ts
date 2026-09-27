@@ -10,6 +10,9 @@ import { RunEngine } from './run-engine.js';
 import { RunStore } from './run-store.js';
 import { runRoutes } from './run-routes.js';
 import { consolePreview } from './activity.js';
+import { procedureRoutes } from './procedure-routes.js';
+import { commandTarget } from './target-reservations.js';
+import { commandRoutes } from './command-routes.js';
 export type AppOptions = {
   irisUrl: string;
   instanceId?: string;
@@ -109,8 +112,11 @@ export function createApp(settings: AppOptions) {
   });
   app.get('/api/activity', (_req, res) => res.json(res.locals.session.activity));
   runRoutes(app, engine, client);
+  procedureRoutes(app, engine, client);
+  commandRoutes(app, engine, client);
   app.post('/api/iris', async (req, res) => {
     const command = operation.parse(req.body) as Operation;
+    if (command.method !== 'GET' && command.path !== '/v2/security/audit/records') throw new ApiError(409, 'Prepare and confirm this change through the command review endpoint. Direct writes are not accepted.');
     if (
       (command.method === 'GET' || command.path === '/v2/security/audit/records') &&
       parameters(command.path, command.method).some((field) => field.name === 'maxRows') &&
@@ -133,7 +139,9 @@ export function createApp(settings: AppOptions) {
       ].slice(0, 100);
     };
     try {
-      const result = await client.request(session.auth, command);
+      const result = await engine.reservations.withTarget(commandTarget(command), undefined, () =>
+        client.request(session.auth, command),
+      );
       if (command.method !== 'GET' || result.console?.length)
         receipt(result.status, result.console);
       res.json(result);

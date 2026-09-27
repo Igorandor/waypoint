@@ -17,7 +17,16 @@ Built for the [InterSystems Programming Contest: Build Your Own Management Porta
 
 Run history survives gateway restarts in the configured data volume and is scoped to the signed-in account. Closing the browser does not automatically restore an open window. Read [runbook semantics and recovery](docs/RUNBOOKS.md).
 
-The left tool rail opens Runs, Status, Apps, Access, Secrets, Tasks, Host, Logs and API. Run history, step selection and the recorded result occupy separate panes. **New run** opens the runbook picker; it does not execute an operation.
+The Operations desk groups restoration obligations, uncertain commands and open handover actions. Run history, step selection and recorded results occupy separate panes. **New run** opens the runbook picker; it does not execute an operation.
+
+## Repeatable procedures and investigations
+
+- The **Procedure library** stores immutable versions of known native reads, manual checklists and closed assertions. Create, edit, duplicate, archive, import or export a definition; a run keeps its selected version. The guided planner builds application, task, capacity or handover reviews. Version comparison shows changed fields, order and evidence dependencies.
+- **Application readiness** joins configuration with separately authorized namespace/resource observations. It includes a field-group baseline comparison and a checklist for planning a change.
+- **Task readiness** reads configuration, execution state and recent history independently, explains the native schedule and exposes missing evidence. Running work is distinct from suspended scheduling. Run/suspend/resume actions use durable command reviews.
+- **Capacity watch** calculates CPU from consecutive counter deltas, displays memory/disk headroom and supports before/after comparisons. An explicit watch lasts 5–15 minutes at 30–300 second intervals and stops on hidden pages or read errors. Its 120-sample browser buffer can be annotated and exported.
+- **Log investigation** provides literal filtering, recognized timestamps, text signals, surrounding context, repeated-message grouping, bookmarks and comparison of two bounded tails. Exports retain the limits of the captured evidence.
+- Closed runs can be archived. Comparisons match observation sources and targets; partial or failed reads are never interpreted as deleted objects. Owner-recorded handover packages preserve unresolved restoration and follow-up obligations without transferring execution authority.
 
 ## Command station and observations
 
@@ -34,7 +43,7 @@ Every write has a separate review step. Execution and destructive controls requi
 
 The interface includes light/dark themes, keyboard controls, Ctrl/Cmd+K navigation and responsive layouts. Native API values are never replaced with sample data.
 
-Waypoint uses target selection → command preparation → review → one execution → receipt. Instance watch collects labelled observations; the API observations catalog supports additional read endpoints.
+Waypoint uses target selection → server review → one dispatch → native readback. Lost responses become uncertain; read-only reconciliation never resends a write. Process controls require a fresh PID, job number and start timestamp. The REST explorer provides additional known read endpoints.
 
 ## Quick start: complete local installation
 
@@ -49,7 +58,7 @@ Open **http://localhost:3300** and sign in:
 - Username: `SuperUser`
 - Password: `WaypointLocal-2026!`
 
-This is a known **local demonstration credential**, configured only by the bundled IRIS development image. Both published ports bind to `127.0.0.1`. Do not expose this stack to the public internet. Use your own instance and account for deployment.
+This is a known **development-image credential**, configured only by the bundled IRIS image. Both published ports bind to `127.0.0.1`. Use the existing-instance deployment below with your own account when serving other users.
 
 The first image build takes several minutes. It installs the small ObjectScript/Embedded Python extension and pins the IRIS Community image by digest. The portal uses a non-root Node.js container. The `iris-data` volume preserves IRIS databases; the separate `waypoint-runs` volume preserves runbook records across container replacement.
 
@@ -80,7 +89,7 @@ Use IRIS Community **2026.2 with SysAdmin API v2**, or a compatible newer instan
    do $SYSTEM.Status.DisplayError(##class(Waypoint.Installer).Install())
    ```
 
-   The installer creates `/api/waypoint` with password authentication and `%Admin_Operate` protection. It does **not** change existing account passwords. `iris/configure.script` is only for the disposable Docker demonstration image; never run it on an existing environment.
+   The installer creates `/api/waypoint` with password authentication and `%Admin_Operate` protection. It does **not** change existing account passwords. `iris/configure.script` provisions the bundled development image and resets its accounts; never run it on an existing environment.
 
 3. Install Node.js 22 LTS or newer and configure the portal:
 
@@ -103,11 +112,21 @@ npm start
 
 See [deployment and security](docs/DEPLOYMENT.md) before serving to other users.
 
+For a gateway-only container connected to an existing IRIS server, use `compose.existing.yaml`. It does not start or configure IRIS:
+
+```sh
+# Set IRIS_URL, IRIS_INSTANCE_ID and PUBLIC_ORIGIN in the environment.
+# PUBLIC_ORIGIN must be the HTTPS origin served by your reverse proxy.
+docker compose -f compose.existing.yaml up -d --build
+```
+
+The gateway remains bound to loopback by default at port 3300; terminate TLS at your configured reverse proxy. Startup validates origin, cookie mode, upstream address and stable instance ID. Use a trusted certificate for remote IRIS; TLS verification is never disabled.
+
 ## Command walkthrough
 
 1. Open Applications or another target area. Select an existing target, inspect its evidence and choose Prepare update.
 2. Add only the fields you want to change. Existing safe values are loaded into those fields. Omit removes a field from the command. Nested objects and arrays use typed controls.
-3. Review command shows the target and before/proposed values. Execute once sends a single native write, then displays a receipt. A conflicting touched field stops the write.
+3. Review command saves the target and masked before/proposed values. Execute once persists dispatch before sending a native write and records the readback outcome. Conflicting touched fields stop the write. The raw gateway rejects writes outside this review workflow.
 4. For creation, choose Create new. Tasks start with a complete on-demand record. Waypoint.DemoTask in %SYS is a harmless test task which records a timestamp in ^WaypointDemo.
 5. Security targets include wallet collections, scoped entries, X.509/TLS and OAuth servers/clients. Secrets are write-only; review masks them.
 6. Processes and devices provides native process details, reviewed controls, device administration and database inspection.
@@ -175,4 +194,4 @@ See [data views and limits](docs/DATA_VIEWS.md).
 
 Open Runbooks → New run → Observe an instance. Choose one to eight sources and optionally name the plan. Selection order determines execution order; deselect and reselect a source to move it to the end. Review the displayed plan and create it. Creation only stores the plan. Run next step performs exactly one selected read and stores its result. Available sources are identity, health, host capacity, messages, processes, task definitions, application routes and journal files. Reopen the run after a reload to inspect its saved evidence. Custom sources cannot be inserted into maintenance templates. Lists are capped at 100 rows where supported; the existing per-step report limits still apply.
 
-See [the original project idea](IDEA.md). The written walkthrough above is part of the contest demonstration; no video or public hosted demo is implied.
+See [the original project idea](IDEA.md) and [operational workflows](docs/WORKFLOWS.md) for the intended use and evidence boundaries.
