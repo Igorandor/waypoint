@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import {
   assertionDefinitions,
@@ -18,12 +18,14 @@ export function ProcedureEditor({
   initial,
   editing,
   busy,
+  remoteError = '',
   onSave,
   onCancel,
 }: {
   initial: ProcedureBody;
   editing: boolean;
   busy: boolean;
+  remoteError?: string;
   onSave: (body: ProcedureBody, note: string) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -31,6 +33,10 @@ export function ProcedureEditor({
   const [changeNote, setChangeNote] = useState('');
   const [error, setError] = useState('');
   const [stepKind, setStepKind] = useState<ProcedureStep['kind']>('observation');
+  const remoteErrorElement = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!busy && remoteError) remoteErrorElement.current?.focus();
+  }, [busy, remoteError]);
   function update(index: number, step: ProcedureStep) {
     setBody((current) => ({
       ...current,
@@ -434,6 +440,17 @@ export function ProcedureEditor({
           </label>
         )}
         {error && <ErrorBox error={error} />}
+        {remoteError && (
+          <div
+            ref={remoteErrorElement}
+            className="error-box"
+            role="alert"
+            aria-label="Procedure save error"
+            tabIndex={-1}
+          >
+            {remoteError}
+          </div>
+        )}
         <footer>
           <button type="button" onClick={onCancel}>
             Cancel

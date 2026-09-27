@@ -24,7 +24,10 @@ export function ProcedureLibrary() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [archiveFilter, setArchiveFilter] = useState('active');
-  const [editor, setEditor] = useState<{ body: ProcedureBody; editing: boolean }>();
+  const [editor, setEditor] = useState<
+    | { body: ProcedureBody; editing: false }
+    | { body: ProcedureBody; editing: true; id: string; revision: number }
+  >();
   const [importing, setImporting] = useState(false);
   const [importText, setImportText] = useState('');
   const [duplicateTitle, setDuplicateTitle] = useState('');
@@ -74,14 +77,13 @@ export function ProcedureLibrary() {
   }
   async function save(body: ProcedureBody, changeNote: string) {
     await perform(async () => {
-      const record =
-        editor?.editing && selected
-          ? await request('procedures/' + selected.id + '/revisions', {
-              revision: selected.revision,
-              body,
-              changeNote,
-            })
-          : await request('procedures', body);
+      const record = editor?.editing
+        ? await request('procedures/' + editor.id + '/revisions', {
+            revision: editor.revision,
+            body,
+            changeNote,
+          })
+        : await request('procedures', body);
       show(record);
       setEditor(undefined);
       await readList();
@@ -222,10 +224,15 @@ export function ProcedureLibrary() {
                 </select>
               </label>
               <button
-                disabled={busy || selected.archived}
+                disabled={busy || loading || selected.archived}
                 onClick={() => {
                   setError('');
-                  setEditor({ body: selected.versions.at(-1)!.body, editing: true });
+                  setEditor({
+                    body: selected.versions.at(-1)!.body,
+                    editing: true,
+                    id: selected.id,
+                    revision: selected.revision,
+                  });
                 }}
               >
                 <Edit3 size={15} /> Edit latest
@@ -370,11 +377,11 @@ export function ProcedureLibrary() {
           }}
         >
           <div className="modal-body">
-            {error && <ErrorBox error={error} />}
             <ProcedureEditor
               initial={editor.body}
               editing={editor.editing}
               busy={busy}
+              remoteError={error}
               onSave={save}
               onCancel={() => setEditor(undefined)}
             />

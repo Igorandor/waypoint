@@ -15,6 +15,7 @@
     "test:task-browser": "node scripts/test-hook-browser.mjs --tasks",
     "test:application-browser": "node scripts/test-hook-browser.mjs --applications",
     "test:dispatch-browser": "node scripts/test-hook-browser.mjs --dispatch",
+    "test:procedure-browser": "node tests/browser/run-procedure-editor.mjs",
     "check": "npm run build && npm test",
     "test:live": "tsx scripts/live-smoke.ts",
     "format": "prettier --write src server shared/*.ts tests scripts/*.ts *.ts *.json docs/*.md README.md",

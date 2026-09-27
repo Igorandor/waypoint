@@ -62,3 +62,7 @@ September 27 addition: the product is now Waypoint, with its own namespace, pack
 ## Native observation ownership — September 27, 2026
 
 Native target lists now stay bound to their path/query scope. Same-source transient errors preserve the last read; access denial removes it. Production builds and 201 Node tests pass, plus 12 standalone real-React browser checks from `npm run test:hook-browser`. Desktop/mobile production-client checks passed using synthetic responses. See [reproduction, standalone test instructions and limits](NATIVE_OBSERVATION_OWNERSHIP.md).
+
+## Stored runs and procedure draft ownership — September 27, 2026
+
+The current full `npm run check` passes frontend/server builds and **215 tests**. Stored-run shape validation and legacy/evidence compatibility are documented in [stored run validation](STORED_RUN_VALIDATION.md). The procedure editor now pins its write ID and revision to its draft and blocks editing during refresh; see [procedure editor ownership and its standalone actual-component runner](PROCEDURE_EDITOR_OWNERSHIP.md). Earlier counts in this record describe historical checkpoints. No existing run/procedure data or native instance was used for these checks.
