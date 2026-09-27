@@ -52,10 +52,13 @@ export function redact(root: any, secrets: readonly string[] = []): any {
     if (typeof value === 'string') return mask(value);
     if (value === null || typeof value !== 'object') return value;
     if (Array.isArray(value)) return value.map(project);
-    const entries = Object.entries(value).map(([name, item]) => [
-      name,
-      credentialField(name) ? '[redacted]' : project(item),
-    ]);
+    const entries = Object.entries(value).map(([name, item]) => {
+      // These exact native user fields describe policy, not credential values.
+      const policy =
+        typeof item === 'boolean' &&
+        ['ChangePassword', 'PasswordNeverExpires', 'HOTPKeyDisplay'].includes(name);
+      return [name, credentialField(name) && !policy ? '[redacted]' : project(item)];
+    });
     return Object.fromEntries(entries);
   };
   return project(root);
