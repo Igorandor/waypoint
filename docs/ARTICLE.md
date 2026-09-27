@@ -65,3 +65,7 @@ The React client connects to a same-origin Node gateway with cookie sessions and
 One gateway process owns each journal directory. Saved records use bounded reads and atomic file replacement; they are not cryptographically immutable audit records. Back up the journal and IRIS separately.
 
 The September 27 checkpoint passed production builds and 236 Node tests. Earlier native verification used IRIS Community 2026.2; IRIS for Health and a complete external OAuth-provider flow remain unverified. The [runbook guide](https://github.com/Igorandor/waypoint/blob/main/docs/RUNBOOKS.md) and [verification record](https://github.com/Igorandor/waypoint/blob/main/docs/VERIFICATION.md) document the tested recovery paths and their limits.
+
+## Video walkthrough
+
+[Watch the recorded workflow on YouTube](https://www.youtube.com/watch?v=75ABhoRBS-4).

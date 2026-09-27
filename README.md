@@ -198,7 +198,7 @@ See [the original project idea](IDEA.md) and [operational workflows](docs/WORKFL
 
 ## Presentation materials
 
-See the [video publication kit](docs/VIDEO.md), [Developer Community article draft](docs/ARTICLE.md), and [online-demo status](docs/ONLINE_DEMO.md). Publication is a separate step.
+Watch the [video walkthrough](https://www.youtube.com/watch?v=75ABhoRBS-4). See [recording details and music credits](docs/VIDEO.md), the [Developer Community article](docs/ARTICLE.md), and [hosting status](docs/ONLINE_DEMO.md).
 
 ## Author
 
