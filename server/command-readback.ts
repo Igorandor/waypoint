@@ -134,6 +134,11 @@ export function readableFields(body: Record<string, unknown>) {
   return Object.keys(body).filter((key) => !protectedField(key, body[key]));
 }
 export function protectedField(key: string, value: unknown): boolean {
+  if (
+    typeof value === 'boolean' &&
+    ['ChangePassword', 'PasswordNeverExpires', 'HOTPKeyDisplay'].includes(key)
+  )
+    return false;
   if (credentialField(key)) return true;
   if (value && typeof value === 'object')
     return Object.entries(value).some(([name, child]) => protectedField(name, child));
