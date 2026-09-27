@@ -4,17 +4,16 @@ import { build } from 'esbuild';
 
 const origin = 'http://127.0.0.1:3430';
 const tasks = process.argv.includes('--tasks');
-const expected = 12;
-const label = tasks ? 'task inventory and dossier' : 'native observation hook';
+const applications = process.argv.includes('--applications');
+const expected = applications ? 8 : 12;
+const label = applications
+  ? 'application inventory and dossier'
+  : tasks
+    ? 'task inventory and dossier'
+    : 'native observation hook';
+const entry = applications ? 'application-inventory' : tasks ? 'task-list' : 'native-observation';
 const bundle = await build({
-  entryPoints: [
-    fileURLToPath(
-      new URL(
-        `../tests/browser/${tasks ? 'task-list' : 'native-observation'}.jsx`,
-        import.meta.url,
-      ),
-    ),
-  ],
+  entryPoints: [fileURLToPath(new URL(`../tests/browser/${entry}.jsx`, import.meta.url))],
   bundle: true,
   write: false,
   platform: 'browser',

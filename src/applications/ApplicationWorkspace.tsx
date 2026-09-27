@@ -20,7 +20,7 @@ import {
   type FieldGroup,
 } from '../../shared/application-insights';
 import type { Procedure } from '../../shared/procedure';
-import { download, iris, request } from '../api';
+import { download, iris, request, RequestError } from '../api';
 import { Badge, ErrorBox, Loading, PageHeader } from '../components/ui';
 import { Evidence } from '../components/DataView';
 import { observeApplication } from './application-observation';
@@ -393,6 +393,7 @@ export function ApplicationWorkspace() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [inventoryError, setInventoryError] = useState('');
   const [search, setSearch] = useState('');
   const [namespace, setNamespace] = useState('all');
   const [enabled, setEnabled] = useState('all');
@@ -408,7 +409,6 @@ export function ApplicationWorkspace() {
   async function loadInventory() {
     const current = ++listSequence.current;
     setLoading(true);
-    setError('');
     try {
       const result = (await iris('/v2/web-apps')).data;
       if (!Array.isArray(result) || result.some((row) => !isApplicationRecord(row)))
@@ -420,8 +420,15 @@ export function ApplicationWorkspace() {
       if (current !== listSequence.current) return;
       setInventory(result);
       setInventoryAt(new Date().toISOString());
+      setInventoryError('');
     } catch (cause) {
-      if (current === listSequence.current) setError((cause as Error).message);
+      if (current === listSequence.current) {
+        if (cause instanceof RequestError && cause.status === 403) {
+          setInventory([]);
+          setInventoryAt('');
+        }
+        setInventoryError((cause as Error).message);
+      }
     } finally {
       if (current === listSequence.current) setLoading(false);
     }
@@ -533,6 +540,7 @@ export function ApplicationWorkspace() {
         )}
       </PageHeader>
       {error && <ErrorBox error={error} />}
+      {inventoryError && <ErrorBox error={'Application inventory: ' + inventoryError} />}
       {!selected && (
         <>
           <div className="application-inventory-filters">
@@ -634,6 +642,11 @@ export function ApplicationWorkspace() {
                 </button>
               </div>
             </>
+          ) : !inventoryAt ? (
+            <section className="panel">
+              <h2>Application inventory unavailable</h2>
+              <p>Use Refresh inventory to try again.</p>
+            </section>
           ) : (
             <section className="panel">
               <h2>No matching applications</h2>
