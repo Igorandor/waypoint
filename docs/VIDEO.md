@@ -24,7 +24,7 @@ Source and installation: https://github.com/Igorandor/waypoint
 
 Companion article: add the published Developer Community URL.
 
-Open Exchange: add the published application URL.
+Open Exchange: https://openexchange.intersystems.com/package/Waypoint
 
 Music: MindStream by DST (Deceased Superior Technician) — CC0 1.0 — https://opengameart.org/content/mindstream
 
