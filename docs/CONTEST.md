@@ -1,5 +1,9 @@
 # Contest coverage and submission preparation
 
+## Developer Community article draft
+
+[ARTICLE.md](ARTICLE.md) contains an unpublished English feature walkthrough. Replace `YOUR_GITHUB_ACCOUNT` with the public repository owner, review the text, and publish it on Developer Community to request the article bonus. A file in this repository does not constitute a published Community article or an awarded bonus.
+
 Source: [contest announcement](https://community.intersystems.com/post/intersystems-programming-contest-build-your-own-management-portal), accessed September 26, 2026.
 
 | Required area                 | Waypoint implementation                                                                | Relevant APIs                                                                                                 |
