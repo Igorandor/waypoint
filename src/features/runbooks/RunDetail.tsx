@@ -178,8 +178,14 @@ export function RunDetail({
                 </label>
               ))}
               {current.procedureStep.reference && (
-                <a href={current.procedureStep.reference} target="_blank" rel="noopener noreferrer">
-                  Open checkpoint reference
+                <a
+                  className="procedure-reference"
+                  href={current.procedureStep.reference}
+                  title={current.procedureStep.reference}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open checkpoint reference · {new URL(current.procedureStep.reference).host}
                 </a>
               )}
             </div>

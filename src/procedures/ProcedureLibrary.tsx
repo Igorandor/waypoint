@@ -298,8 +298,14 @@ export function ProcedureLibrary() {
                       </ul>
                       {step.requireNote && <small>Operator note required</small>}
                       {step.reference && (
-                        <a href={step.reference} target="_blank" rel="noopener noreferrer">
-                          Open reference
+                        <a
+                          className="procedure-reference"
+                          href={step.reference}
+                          title={step.reference}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Open reference · {new URL(step.reference).host}
                         </a>
                       )}
                     </>

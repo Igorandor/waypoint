@@ -571,3 +571,6 @@ button.primary {
   margin: 0;
   font-weight: 600;
 }
+.procedure-reference {
+  overflow-wrap: anywhere;
+}
