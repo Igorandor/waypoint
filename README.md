@@ -1,6 +1,6 @@
 # Waypoint for InterSystems IRIS
 
-Waypoint combines a complete IRIS administration client with durable, step-by-step operations. Its main workspace guides an observation run, an application maintenance window or a task scheduling window. It remembers the original state, verifies transitions, records checkpoints and handles uncertain write outcomes without automatically replaying them. Operational evidence comes from the real SysAdmin v2 APIs and the protected native telemetry extension.
+Waypoint guides maintenance procedures in InterSystems IRIS. Run observations one step at a time, pause an application or task schedule for maintenance, and restore its recorded starting state. Saved runs retain results and unfinished restoration steps across sessions.
 
 Built for the [InterSystems Programming Contest: Build Your Own Management Portal](https://community.intersystems.com/post/intersystems-programming-contest-build-your-own-management-portal).
 
@@ -199,3 +199,9 @@ See [the original project idea](IDEA.md) and [operational workflows](docs/WORKFL
 ## Presentation materials
 
 See the [video publication kit](docs/VIDEO.md), [Developer Community article draft](docs/ARTICLE.md), and [online-demo status](docs/ONLINE_DEMO.md). Publication is a separate step.
+
+## Author
+
+[Igor Podlewski on Developer Community](https://community.intersystems.com/user/igor-podlewski) · [GitHub](https://github.com/Igorandor)
+
+Development used AI assistance. See [provenance](docs/PROVENANCE.md) for implementation history and attribution.

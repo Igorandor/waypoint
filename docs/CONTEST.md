@@ -2,7 +2,7 @@
 
 ## Developer Community article draft
 
-[ARTICLE.md](ARTICLE.md) contains an unpublished English feature walkthrough. Replace `YOUR_GITHUB_ACCOUNT` with the public repository owner, review the text, and publish it on Developer Community to request the article bonus. A file in this repository does not constitute a published Community article or an awarded bonus.
+[ARTICLE.md](ARTICLE.md) contains an unpublished English feature walkthrough. Review the draft and publish it on Developer Community to request the article bonus. A file in this repository does not constitute a published Community article or an awarded bonus.
 
 Source: [contest announcement](https://community.intersystems.com/post/intersystems-programming-contest-build-your-own-management-portal), accessed September 26, 2026.
 
@@ -19,7 +19,7 @@ The application includes English installation instructions and a written demonst
 
 ## Technology bonuses
 
-The [published technology bonus list](https://community.intersystems.com/post/technology-bonuses-intersystems-programming-contest-build-your-own-management-portal) was reviewed. Waypoint uses Docker and Embedded Python for a concrete purpose: native host telemetry and bounded log reads. It does not add vector search or an AI dependency merely to accumulate points.
+The [published technology bonus list](https://community.intersystems.com/post/technology-bonuses-intersystems-programming-contest-build-your-own-management-portal) was reviewed. Waypoint uses Docker and Embedded Python for a concrete purpose: native host telemetry and bounded log reads.
 
 No claim is made for online hosting, published IPM packages, community ideas, articles, YouTube videos, first-time participation or reported vendor bugs. These require separate completed actions or eligibility checks.
 
@@ -33,7 +33,7 @@ No claim is made for online hosting, published IPM packages, community ideas, ar
 
 ### Suggested Open Exchange description
 
-Waypoint is an operations portal for InterSystems IRIS with durable, step-by-step runbooks. Observation, application maintenance windows and task scheduling windows capture original state, verify transitions and preserve evidence. Interrupted writes require reconciliation and are never automatically replayed. It brings web applications, permissions, wallet secrets, X.509/TLS/OAuth configuration, scheduled tasks, host resources and operational logs into a consistent React interface. A same-origin Node gateway preserves the operator's IRIS privileges; reviewable changes, typed confirmations and conflict checks support everyday administration. The included Docker stack and protected Embedded Python extension provide a reproducible local installation with real telemetry and log data.
+Waypoint guides maintenance procedures in InterSystems IRIS. Record the starting state of an application or task schedule, perform each step explicitly and restore that state after maintenance. Interrupted operations remain visible for review. Versioned procedures also support read-only observations and manual checklists. Handover reports include recorded results and unfinished work. The repository includes Docker installation instructions and administration tools for applications, access, secrets, tasks, host resources and logs.
 
 ## Current review status
 

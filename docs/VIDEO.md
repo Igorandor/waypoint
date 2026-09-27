@@ -20,7 +20,7 @@ Create an observation plan, run its four steps and save a handover summary.
 
 Recorded interactions with the running application, edited into short clips with original timing. English captions and instrumental music; no narration. The demonstrated workflow reads IRIS Community and stores review records in an isolated presentation workspace.
 
-Source and installation: https://github.com/YOUR_GITHUB_ACCOUNT/waypoint
+Source and installation: https://github.com/Igorandor/waypoint
 
 Companion article: add the published Developer Community URL.
 

@@ -1,23 +1,23 @@
-# Waypoint: keep the restoration step visible during IRIS maintenance
+# Running and restoring IRIS maintenance procedures with Waypoint
 
-A maintenance window often changes two things: the system being maintained and the operator's understanding of what remains to be done. Disabling a web application is straightforward. Remembering its original state, recording what happened when a request timed out, and leaving useful evidence for the next shift takes more work.
+When you disable an application for maintenance, you need to remember its starting state and restore it afterward. A lost response or a shift change makes this harder: another operator needs to know what happened and which steps remain.
 
-Waypoint is an InterSystems IRIS management portal built around that sequence. Its Runbooks view keeps a saved plan, recorded observations, operator checkpoints and restoration obligations together. The Operations desk summarizes work needing attention across runs and commands. Creating a run saves the plan; it does not execute its steps.
+Waypoint records each step of an IRIS maintenance run, including observations, operator notes and unfinished restoration work. The Operations desk lists runs that need attention. This walkthrough begins with a read-only run before explaining the maintenance and handover workflows.
 
-The [repository](https://github.com/YOUR_GITHUB_ACCOUNT/waypoint) includes the source, installation instructions and recovery documentation. Development used AI assistance; the implementation history and retained third-party references are described in [provenance](https://github.com/YOUR_GITHUB_ACCOUNT/waypoint/blob/main/docs/PROVENANCE.md).
+The [repository](https://github.com/Igorandor/waypoint) includes the source, installation instructions and recovery documentation. Development used AI assistance; the implementation history and retained third-party references are described in [provenance](https://github.com/Igorandor/waypoint/blob/main/docs/PROVENANCE.md).
 
 ## Start with an observation run
 
 The supplied installation uses Docker with Compose v2 and Linux containers. Allow at least 4 GB of available RAM and approximately 5 GB of disk space.
 
 ```sh
-git clone https://github.com/YOUR_GITHUB_ACCOUNT/waypoint.git
+git clone https://github.com/Igorandor/waypoint.git
 cd waypoint
 docker compose up -d --build
 docker compose ps
 ```
 
-After the first build completes, open `http://localhost:3300`. The bundled account is `SuperUser`, with password `WaypointLocal-2026!`. This is a published development-image credential. Both published ports bind to loopback. Deployments for other users need private accounts and HTTPS; the [deployment guide](https://github.com/YOUR_GITHUB_ACCOUNT/waypoint/blob/main/docs/DEPLOYMENT.md) covers the existing-instance configuration.
+After the first build completes, open `http://localhost:3300`. The bundled account is `SuperUser`, with password `WaypointLocal-2026!`. This is a published development-image credential. Both published ports bind to loopback. Deployments for other users need private accounts and HTTPS; the [deployment guide](https://github.com/Igorandor/waypoint/blob/main/docs/DEPLOYMENT.md) covers the existing-instance configuration.
 
 For a first walkthrough, use the observation plan:
 
@@ -64,4 +64,4 @@ The React client connects to a same-origin Node gateway with cookie sessions and
 
 One gateway process owns each journal directory. Saved records use bounded reads and atomic file replacement; they are not cryptographically immutable audit records. Back up the journal and IRIS separately.
 
-The September 27 checkpoint passed production builds and 236 Node tests. Earlier native verification used IRIS Community 2026.2; IRIS for Health and a complete external OAuth-provider flow remain unverified. The [runbook guide](https://github.com/YOUR_GITHUB_ACCOUNT/waypoint/blob/main/docs/RUNBOOKS.md) and [verification record](https://github.com/YOUR_GITHUB_ACCOUNT/waypoint/blob/main/docs/VERIFICATION.md) document the tested recovery paths and their limits.
+The September 27 checkpoint passed production builds and 236 Node tests. Earlier native verification used IRIS Community 2026.2; IRIS for Health and a complete external OAuth-provider flow remain unverified. The [runbook guide](https://github.com/Igorandor/waypoint/blob/main/docs/RUNBOOKS.md) and [verification record](https://github.com/Igorandor/waypoint/blob/main/docs/VERIFICATION.md) document the tested recovery paths and their limits.
