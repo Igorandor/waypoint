@@ -8,6 +8,7 @@ import {
 import { request, download } from '../api';
 import { Badge, ErrorBox, Loading, PageHeader } from '../components/ui';
 import { Evidence, human } from '../components/DataView';
+import { readProtected, refreshProtected } from '../protected-read';
 import './history.css';
 
 type Summary = Pick<
@@ -30,14 +31,19 @@ export function CommandHistory() {
   const [status, setStatus] = useState('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const readList = () => readProtected<Summary[]>('commands', setRecords, () => setRecords([]));
+  const readDetail = (id: string) =>
+    readProtected<CommandResult>('commands/' + id, setSelected, () => {
+      setSelected((current) => (current?.id === id ? undefined : current));
+      setRecords((current) => current.filter((record) => record.id !== id));
+    });
   async function refresh() {
     setLoading(true);
     setError('');
     try {
-      setRecords(await request('commands'));
-      if (selected) setSelected(await request('commands/' + selected.id));
-    } catch (cause) {
-      setError((cause as Error).message);
+      setError(
+        await refreshProtected([readList, ...(selected ? [() => readDetail(selected.id)] : [])]),
+      );
     } finally {
       setLoading(false);
     }
@@ -67,7 +73,7 @@ export function CommandHistory() {
     setBusy(true);
     setError('');
     try {
-      setSelected(await request('commands/' + id));
+      await readDetail(id);
     } catch (cause) {
       setError((cause as Error).message);
     } finally {
@@ -80,7 +86,7 @@ export function CommandHistory() {
     setError('');
     try {
       setSelected(await request('commands/' + selected.id + '/reconcile', {}));
-      setRecords(await request('commands'));
+      await readList();
     } catch (cause) {
       setError((cause as Error).message);
     } finally {

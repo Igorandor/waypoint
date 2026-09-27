@@ -4,7 +4,7 @@ import { register } from 'node:module';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { Run, RunSummary } from '../shared/runbook';
-import type { request } from '../src/api';
+import { RequestError, type request } from '../src/api';
 
 // These tests exercise the page's real action handler; styles have no server-side behavior.
 register(
@@ -70,7 +70,10 @@ test('an action rejection returns its actual error to the dialog and never fetch
       () => assert.fail('a rejected write must not replace the history'),
       (async (path: string) => {
         calls.push(path);
-        throw new Error(action === 'handover' ? 'Run changed (409).' : 'Restoration denied (403).');
+        throw new RequestError(
+          action === 'handover' ? 'Run changed (409).' : 'Restoration denied (403).',
+          action === 'handover' ? 409 : 403,
+        );
       }) as typeof request,
     );
     assert.equal(result.ok, false);

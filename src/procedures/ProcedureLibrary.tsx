@@ -12,6 +12,7 @@ import { Badge, ErrorBox, Loading, Modal, PageHeader } from '../components/ui';
 import { ProcedureEditor, blankProcedure } from './ProcedureEditor';
 import { ProcedurePlanner, ProcedureReadiness } from './ProcedurePlanner';
 import { ProcedureVersionDiff } from './ProcedureVersionDiff';
+import { readProtected, refreshProtected } from '../protected-read';
 import './procedures.css';
 
 export function ProcedureLibrary() {
@@ -30,13 +31,25 @@ export function ProcedureLibrary() {
   const [duplicating, setDuplicating] = useState(false);
   const [planning, setPlanning] = useState(false);
   const version = selected?.versions.find((item) => item.number === versionNumber);
+  const readList = () =>
+    readProtected<ProcedureSummary[]>('procedures', setList, () => setList([]));
+  const readDetail = (id: string, selecting = false) =>
+    readProtected<Procedure>('procedures/' + id, selecting ? show : setSelected, () => {
+      setSelected((current) => (current?.id === id ? undefined : current));
+      setList((current) => current.filter((record) => record.id !== id));
+      if (selected?.id === id) {
+        setEditor((current) => (current?.editing ? undefined : current));
+        setDuplicating(false);
+        setDuplicateTitle('');
+      }
+    });
   async function refresh() {
     setLoading(true);
     setError('');
     try {
-      setList(await request('procedures'));
-    } catch (cause) {
-      setError((cause as Error).message);
+      setError(
+        await refreshProtected([readList, ...(selected ? [() => readDetail(selected.id)] : [])]),
+      );
     } finally {
       setLoading(false);
     }
@@ -71,7 +84,7 @@ export function ProcedureLibrary() {
           : await request('procedures', body);
       show(record);
       setEditor(undefined);
-      setList(await request('procedures'));
+      await readList();
     });
   }
   async function importDefinition() {
@@ -91,7 +104,7 @@ export function ProcedureLibrary() {
       show(record);
       setImportText('');
       setImporting(false);
-      setList(await request('procedures'));
+      await readList();
     });
   }
   const visible = list.filter(
@@ -164,9 +177,11 @@ export function ProcedureLibrary() {
                 className="procedure-option"
                 key={item.id}
                 aria-pressed={selected?.id === item.id}
-                disabled={busy}
+                disabled={busy || loading}
                 onClick={() =>
-                  void perform(async () => show(await request('procedures/' + item.id)))
+                  void perform(async () => {
+                    await readDetail(item.id, true);
+                  })
                 }
               >
                 <strong>{item.title}</strong>
@@ -245,7 +260,7 @@ export function ProcedureLibrary() {
                         archived: !selected.archived,
                       }),
                     );
-                    setList(await request('procedures'));
+                    await readList();
                   })
                 }
               >
@@ -453,7 +468,7 @@ export function ProcedureLibrary() {
                     }),
                   );
                   setDuplicating(false);
-                  setList(await request('procedures'));
+                  await readList();
                 })
               }
             >

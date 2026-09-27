@@ -1,5 +1,9 @@
 # Verification record
 
+## Refused saved-data reads — September 27, 2026
+
+Command history, runs and procedures now remove the specific cached resource after a forbidden GET, including its export. Temporary failures retain previous data, and rejected writes retain drafts. List and selected-detail refreshes are checked independently. Four new focused regressions pass; the full `npm run check` passes both production bundles and **172 tests**. See [behavior and isolated UI scenarios](PROTECTED_READ_RECOVERY.md). No native changes were needed; browser evidence belongs to the integration checkpoint.
+
 ## Recovery browser integration — September 27, 2026
 
 The production client was inspected at 1280 × 900 and 390 × 844. An isolated command fixture confirmed that conflicts and failed current-target reads retain the draft without dispatch or receipt reads; a manual fresh review followed by execution produced exactly one in-memory write. A separate run fixture confirmed that a successful note survives a history-list failure, clears the submitted draft and does not invite duplication. Handover and restoration errors remain visible inside the active dialog with the entered values intact. These fixtures never connect to IRIS.

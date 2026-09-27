@@ -17,6 +17,7 @@ import { Badge, ErrorBox, Loading, Modal, PageHeader } from '../components/ui';
 import { CreateRun } from '../features/runbooks/CreateRun';
 import { RunDetail } from '../features/runbooks/RunDetail';
 import { RunComparison } from '../features/runbooks/RunComparison';
+import { readProtected, refreshProtected } from '../protected-read';
 
 export type RunActionResult = { ok: true; warning?: string } | { ok: false; error: string };
 export type RunAction = (
@@ -46,7 +47,7 @@ export async function performRunAction(
   // The returned record confirms the action independently of the history list.
   publishRun(updated);
   try {
-    publishList(await transport<RunSummary[]>('runs'));
+    await readProtected<RunSummary[]>('runs', publishList, () => publishList([]), transport);
     return { ok: true };
   } catch (cause) {
     return {
@@ -73,16 +74,33 @@ export function Runbooks() {
     [archived, setArchived] = useState(false),
     [from, setFrom] = useState(''),
     [to, setTo] = useState('');
+  const readList = () =>
+    readProtected<RunSummary[]>('runs', setRuns, () => {
+      setRuns([]);
+      setComparing(false);
+    });
+  const readDetail = (id: string) =>
+    readProtected<Run>('runs/' + id, setRun, () => {
+      setRun((current) => (current?.id === id ? undefined : current));
+      setRuns((current) => current.filter((record) => record.id !== id));
+      setComparing(false);
+    });
   async function refresh() {
     setError('');
     setLoading(true);
     try {
-      const list = await request('runs');
-      setRuns(list);
-      if (run) setRun(await request('runs/' + run.id));
-      else if (list.length) setRun(await request('runs/' + list[0].id));
-    } catch (e) {
-      setError((e as Error).message);
+      let firstId: string | undefined;
+      setError(
+        await refreshProtected([
+          async () => {
+            firstId = (await readList())[0]?.id;
+          },
+          async () => {
+            const id = run?.id ?? firstId;
+            if (id) await readDetail(id);
+          },
+        ]),
+      );
     } finally {
       setLoading(false);
     }
@@ -91,9 +109,7 @@ export function Runbooks() {
     void refresh();
     const created = (event: Event) => {
       void select((event as CustomEvent<string>).detail);
-      void request('runs')
-        .then(setRuns)
-        .catch((cause) => setError(cause.message));
+      void readList().catch((cause) => setError(cause.message));
     };
     window.addEventListener('waypoint-run-created', created);
     return () => window.removeEventListener('waypoint-run-created', created);
@@ -102,7 +118,7 @@ export function Runbooks() {
     setBusy(true);
     setError('');
     try {
-      setRun(await request('runs/' + id));
+      await readDetail(id);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -319,9 +335,7 @@ export function Runbooks() {
           onCreated={(created) => {
             setRun(created);
             setTemplate(undefined);
-            void request('runs')
-              .then(setRuns)
-              .catch((e) => setError(e.message));
+            void readList().catch((e) => setError(e.message));
           }}
         />
       )}
