@@ -20,6 +20,7 @@ import {
   type TargetReservations,
 } from './target-reservations.js';
 import { ApiError, validateOperation, type IrisClient, type Operation } from './upstream.js';
+import { journalDiagnostic } from './journal-diagnostic.js';
 
 type CommandActor = { owner: string; auth: string };
 type Prepared = { owner: string; expires: number; command: Operation };
@@ -34,6 +35,7 @@ export class CommandService {
     private clock = Date.now,
   ) {}
   private event(record: CommandResult, status: CommandOutcome, message: string) {
+    message = journalDiagnostic(message);
     record.status = status;
     record.message = message;
     record.updatedAt = new Date(this.clock()).toISOString();
@@ -70,11 +72,12 @@ export class CommandService {
   }
   private safe(value: unknown, secrets: string[] = []) {
     const result = redact(value, secrets);
-    return Buffer.byteLength(JSON.stringify(result) ?? '') < 150000
+    // Match the journal's two-space encoding, including the enclosing field indentation.
+    return Buffer.byteLength(JSON.stringify({ evidence: result }, null, 2)) < 150000
       ? result
       : {
           notice:
-            'The result exceeds this journal’s 150 KB evidence limit. Inspect the native target.',
+            'Evidence omitted: the result exceeds this journal’s 150 KB stored evidence limit. Inspect the native target.',
         };
   }
   private async readNative(actor: CommandActor, record: CommandResult) {
@@ -419,7 +422,7 @@ export class CommandService {
             this.event(
               record,
               definitelyRejected ? 'rejected' : 'uncertain',
-              String(this.safe((error as Error).message, secrets)),
+              String(redact((error as Error).message, secrets)),
             );
           }
           await this.journal.save(record);
@@ -465,8 +468,10 @@ export class CommandService {
         }
       }
       await this.observe(actor, record);
-      record.message +=
-        ' This is a current observation; it does not establish which actor caused the state.';
+      record.message = journalDiagnostic(
+        record.message +
+          ' This is a current observation; it does not establish which actor caused the state.',
+      );
       await this.journal.save(record);
       return record;
     });

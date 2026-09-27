@@ -18,6 +18,7 @@ import {
 } from '../shared/procedure.js';
 import { runTarget, TargetReservations } from './target-reservations.js';
 import { canArchive, handoverInputSchema, type HandoverInput } from '../shared/run-records.js';
+import { journalDiagnostic } from './journal-diagnostic.js';
 
 type Actor = { owner: string; auth: string };
 export class RunEngine {
@@ -36,7 +37,7 @@ export class RunEngine {
   private event(run: Run, action: string, message: string) {
     run.revision = (run.revision ?? 0) + 1;
     run.updatedAt = new Date().toISOString();
-    run.events.push({ at: run.updatedAt, action, message });
+    run.events.push({ at: run.updatedAt, action, message: journalDiagnostic(message) });
     run.events = run.events.slice(-200);
   }
   private async locked<T>(actor: Actor, id: string, action: () => Promise<T>): Promise<T> {
@@ -450,7 +451,7 @@ export class RunEngine {
       }
     } catch (error) {
       step.status = writeAttempted ? 'uncertain' : 'failed';
-      step.error = (error as Error).message;
+      step.error = journalDiagnostic((error as Error).message);
       this.event(run, step.status, step.title + ': ' + step.error);
     }
     await this.store.save(run);

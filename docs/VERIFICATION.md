@@ -78,3 +78,7 @@ The full check now passes frontend/server builds and **226 tests**, including si
 ## Follow-up deadline ordering — September 27, 2026
 
 The full check passes frontend/server builds and **227 tests**. One added engine/store/summary regression verifies chronological ordering and overdue detection for accepted UTC timestamps with different fractional precision. The regular UTC-minute editor is unchanged. See [handover deadline boundaries and verification](HANDOVER_DEADLINES.md).
+
+## Journal evidence and diagnostic budgets — September 27, 2026
+
+The full check passes frontend/server builds and **231 tests** (exit 0). Four additional regressions verify restoration after three large native diagnostic responses, a durable command outcome when nested evidence is explicitly omitted, bounded readback/reconciliation failures and UTF-8/JSON-escape budgets. Existing stored data and record-size caps remain unchanged. See [journal budgets and legacy recovery limitations](JOURNAL_EVIDENCE_BUDGETS.md).
