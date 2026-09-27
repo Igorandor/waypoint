@@ -1,20 +1,24 @@
 # Video publication kit
 
-## Prepared files
+## Current recording
 
-The revised Waypoint walkthrough is 96 seconds long, with instrumental CC0 music and brief English captions. There is no spoken narration. The MP4, SRT and poster are delivered separately from this source repository. No public video URL or awarded bonus is claimed.
+The Waypoint video now shows actual browser interactions: typing, navigation, changing results and saved workflow records. Duration: approximately 1:15. Instrumental CC0 music and short English captions remain; there is no narration.
 
-This is an edited sequence of actual application screens, not a continuous screen recording. Screens were captured from the running application after the scrollbar appearance update. The native IRIS operations shown are reads. Workflow records use an isolated presentation store; no production customer data is shown.
+This is an edited recording assembled from continuously captured browser frames during each interaction. Original timing is preserved within each clip; pauses between takes are removed. It is not a static screenshot presentation or a single uninterrupted take. The complete captured viewport remains visible. Login credentials are excluded.
+
+The native IRIS operations shown are reads. Investigation notes, campaign decisions and run records are saved in a separate presentation store. No native administration settings or existing user workflow data were changed.
+
+The MP4, SRT, poster and technical report are delivered separately from this repository. No public video URL or awarded bonus is claimed.
 
 ## Suggested YouTube title
 
-Waypoint for InterSystems IRIS | Plan, execute, inspect, hand over
+Waypoint for InterSystems IRIS | Live workflow demonstration
 
 ## Suggested description
 
-Plan, execute, inspect, hand over.
+Create an observation plan, run its four steps and save a handover summary.
 
-An edited walkthrough of actual Waypoint screens, with English on-screen captions and instrumental music. The demonstrated workflow reads an IRIS Community instance. No native administrative changes are performed.
+Recorded interactions with the running application, edited into short clips with original timing. English captions and instrumental music; no narration. The demonstrated workflow reads IRIS Community and stores review records in an isolated presentation workspace.
 
 Source and installation: https://github.com/YOUR_GITHUB_ACCOUNT/waypoint
 
@@ -24,49 +28,28 @@ Open Exchange: add the published application URL.
 
 Music: MindStream by DST (Deceased Superior Technician) — CC0 1.0 — https://opengameart.org/content/mindstream
 
-Music may be trimmed or looped, with loudness adjustment and fades. Source details and hashes are retained in [MUSIC_LICENSES.md](MUSIC_LICENSES.md).
+Music is trimmed or looped, normalized and faded. See [MUSIC_LICENSES.md](MUSIC_LICENSES.md) for primary sources and original file hashes.
 
 ## Before upload
 
-1. Watch and listen to the complete MP4. Replace the repository owner and add the real article/application links to the description.
-2. Upload the individual video, or use its chapter in the combined film. Review the publication settings yourself. Multiple uploads do not necessarily multiply the contest bonus.
-3. An English SRT is supplied. The brief captions are already part of the picture, so check for duplicate captions when enabling the optional subtitle track.
-4. Publish the chosen video, verify access without signing in, and add its actual URL to the Open Exchange YouTube field and repository README.
+1. Watch and listen to the entire MP4. Replace the repository owner and add actual article/application links.
+2. Upload the individual film or use its chapter in the combined film. Review publication settings yourself. Multiple uploads do not necessarily multiply the contest bonus.
+3. English SRT captions are supplied; short captions are already visible in the picture. Check for duplicate display when enabling subtitles.
+4. Verify the published video without signing in, then add its real URL to the Open Exchange YouTube field and repository README.
 
-## On-screen captions
+## Recorded clips
 
-### 1. Choose the next piece of work
-
-The run list keeps active work, finished runs and restoration obligations together.
-
-### 2. Use a plan with a clear purpose
-
-Choose an observation plan to collect evidence without disabling an application or suspending a task.
-
-### 3. Review the steps before saving
-
-Name the run and choose its sources. Saving a plan does not execute its steps.
-
-### 4. Continue explicitly
-
-Pending steps remain visible. Run next step is the operator's action to proceed.
-
-### 5. Inspect the first result
-
-A recorded response keeps its timestamp and attempt count. The next step is still pending.
-
-### 6. Read measurements in context
-
-Host capacity describes the system visible to IRIS; it may differ from container limits.
-
-### 7. Finish the selected observations
-
-The recorded results remain available after completion. This read-only run needs no restoration.
-
-### 8. Write the limitation down
-
-Prepare a recipient, summary and outstanding risks. Saving the handover does not send a message.
-
-### 9. Leave the next operator a record
-
-Results and handover notes stay together. Recipient acceptance is not assumed.
+1. Start an observation run from the run queue.
+2. Choose the read-only instance observation plan.
+3. Name the run before recording any observations.
+4. Create the plan: all four steps are still pending.
+5. Run the first step and record the instance identity.
+6. Reopen the recorded step to inspect its actual response.
+7. Continue to the health observation.
+8. Record host capacity as the third observation.
+9. Read recent system messages and complete the selected plan.
+10. Completed steps remain available for inspection.
+11. Prepare a handover from the completed run.
+12. Write the recipient, result summary and remaining limitation.
+13. Save the handover details with the recorded observations.
+14. The summary is saved; delivery remains explicitly unconfirmed.
