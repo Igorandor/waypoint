@@ -40,7 +40,10 @@ export function ProcedurePlanner({
     let current = true;
     setTargets([]);
     setError('');
-    if (setup.purpose !== 'task' && setup.purpose !== 'application') return;
+    if (setup.purpose !== 'task' && setup.purpose !== 'application') {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const task = setup.purpose === 'task';
     void iris(task ? '/v2/tasks' : '/v2/web-apps', task ? { maxRows: '1000' } : {})
