@@ -5,6 +5,7 @@ import type { Run, RunSummary } from '../shared/runbook.js';
 import { summarize } from '../shared/runbook.js';
 import { ApiError } from './upstream.js';
 import { readBoundedJson } from './bounded-file.js';
+import { validateStoredRun } from './run-validation.js';
 
 /** One process owns a store. Files are atomically replaced; credentials are never persisted. */
 export class RunStore {
@@ -27,14 +28,9 @@ export class RunStore {
   async read(owner: string, instance: string, id: string): Promise<Run> {
     try {
       const filename = this.file(owner, instance, id);
-      const run = (await readBoundedJson(filename, 4 * 1024 * 1024)) as Run;
-      if (
-        run.version !== 1 ||
-        run.owner !== owner ||
-        run.instance !== instance ||
-        run.id !== id ||
-        !Array.isArray(run.steps)
-      )
+      const run = await readBoundedJson(filename, 4 * 1024 * 1024);
+      validateStoredRun(run);
+      if (run.owner !== owner || run.instance !== instance || run.id !== id)
         throw new Error('Invalid run record.');
       return run;
     } catch (error) {
