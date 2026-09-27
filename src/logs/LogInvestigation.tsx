@@ -16,6 +16,7 @@ import {
 } from '../../shared/log-investigation';
 import { iris, request, download } from '../api';
 import { ErrorBox, PageHeader } from '../components/ui';
+import { discardDeniedLogEvidence } from './log-access';
 import './logs.css';
 
 const blankFilter: LogFilter = {
@@ -68,7 +69,19 @@ export function LogInvestigation() {
       });
       setSelected(undefined);
     } catch (cause) {
-      if (sequence === requestSequence.current) setError((cause as Error).message);
+      if (sequence === requestSequence.current) {
+        const evidence = { capture, previous, selected, notice };
+        const remaining = discardDeniedLogEvidence(evidence, source, cause);
+        if (remaining !== evidence) {
+          if (remaining.capture !== capture) {
+            setCapture(remaining.capture);
+            setSelected(remaining.selected);
+            setNotice(remaining.notice);
+          }
+          if (remaining.previous !== previous) setPrevious(remaining.previous);
+        }
+        setError((cause as Error).message);
+      }
     } finally {
       if (sequence === requestSequence.current) setBusy(false);
     }
