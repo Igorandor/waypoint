@@ -11,6 +11,7 @@ import {
 import { handoverHtml } from '../../../shared/handover-report';
 import { download } from '../../api';
 import { Badge, ErrorBox, Modal } from '../../components/ui';
+import type { RunAction } from '../../pages/Runbooks';
 
 const emptyHandover = (): HandoverInput => ({
   recipient: '',
@@ -37,7 +38,7 @@ export function RunRecordTools({
 }: {
   run: Run;
   busy: boolean;
-  onAction: (action: string, body?: Record<string, unknown>) => Promise<boolean>;
+  onAction: RunAction;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<HandoverInput>(emptyHandover);
@@ -70,7 +71,10 @@ export function RunRecordTools({
       setError(result.error.issues.map((issue) => issue.message).join(' '));
       return;
     }
-    if (await onAction('handover', { revision, handover: result.data })) setEditing(false);
+    setError('');
+    const saved = await onAction('handover', { revision, handover: result.data });
+    if (saved.ok) setEditing(false);
+    else setError(saved.error);
   }
   return (
     <section className="run-record-tools">
@@ -171,7 +175,13 @@ export function RunRecordTools({
           disabled={busy || !note.trim()}
           onClick={async () => {
             if (
-              await onAction('notes', { revision: run.revision ?? 0, text: note.trim(), category })
+              (
+                await onAction('notes', {
+                  revision: run.revision ?? 0,
+                  text: note.trim(),
+                  category,
+                })
+              ).ok
             )
               setNote('');
           }}

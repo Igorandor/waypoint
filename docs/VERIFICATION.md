@@ -1,5 +1,19 @@
 # Verification record
 
+## Recovery browser integration — September 27, 2026
+
+The production client was inspected at 1280 × 900 and 390 × 844. An isolated command fixture confirmed that conflicts and failed current-target reads retain the draft without dispatch or receipt reads; a manual fresh review followed by execution produced exactly one in-memory write. A separate run fixture confirmed that a successful note survives a history-list failure, clears the submitted draft and does not invite duplication. Handover and restoration errors remain visible inside the active dialog with the entered values intact. These fixtures never connect to IRIS.
+
+Procedure import validation was reproduced on the running native-backed gateway: malformed JSON previously displayed its error behind the modal. Errors for import, editing and duplication now appear inside their respective dialogs, and import/copy inputs are disabled while saving. Desktop and phone checks confirmed the malformed JSON message and retained input, with no page-width overflow. No procedure was imported by that validation test. The latest full check remains **168 passing tests** plus frontend/server builds.
+
+## Run action recovery — September 27, 2026
+
+Successful run writes now remain successful when the following history read fails, so saved notes are cleared instead of inviting duplicate submission. Restoration and handover show server errors within the active dialog and retain their fields. Checkpoint notes are locked while their action is pending. The full `npm run check` passes production frontend/server builds and **168 tests**, including four focused run-recovery regressions. See [run recovery behavior and isolated browser scenarios](RUN_RECOVERY.md). Native data and volumes were not changed. Browser verification belongs to the separate integration checkpoint.
+
+## Command draft recovery — September 27, 2026
+
+The command station now retains prepared fields after a failed preflight read or same-field conflict, invalidates the previous review and requires a manual fresh review. A new review supplies the new comparison baseline. Only failures after attempting the execution request consult the command receipt and may display an uncertain result. Six focused in-memory regressions pass; the full `npm run check` passes the production build and **164 tests**. See [recovery semantics and test scope](COMMAND_RECOVERY.md). No native writes or volume changes were needed for this correction. Browser verification is recorded separately after the isolated fixture check.
+
 Verified September 26, 2026 on disposable IRIS Community 2026.2 build 221U. This record describes the current independent implementation; earlier review documents describe earlier revisions.
 
 | Check                    | Current result                                                                                                          |

@@ -113,18 +113,27 @@ export function ProcedureLibrary() {
         <button disabled={busy || loading} onClick={() => void refresh()}>
           <RefreshCw size={16} /> Refresh
         </button>
-        <button disabled={busy} onClick={() => setImporting(true)}>
+        <button
+          disabled={busy}
+          onClick={() => {
+            setError('');
+            setImporting(true);
+          }}
+        >
           <Upload size={16} /> Import
         </button>
         <button
           className="primary"
           disabled={busy}
-          onClick={() => setEditor({ body: blankProcedure(), editing: false })}
+          onClick={() => {
+            setError('');
+            setEditor({ body: blankProcedure(), editing: false });
+          }}
         >
           <Plus size={16} /> New procedure
         </button>
       </PageHeader>
-      {error && <ErrorBox error={error} />}
+      {error && !editor && !importing && !duplicating && <ErrorBox error={error} />}
       <div className="procedure-layout">
         <section className="panel procedure-list" aria-label="Saved procedures">
           <label className="field">
@@ -199,13 +208,17 @@ export function ProcedureLibrary() {
               </label>
               <button
                 disabled={busy || selected.archived}
-                onClick={() => setEditor({ body: selected.versions.at(-1)!.body, editing: true })}
+                onClick={() => {
+                  setError('');
+                  setEditor({ body: selected.versions.at(-1)!.body, editing: true });
+                }}
               >
                 <Edit3 size={15} /> Edit latest
               </button>
               <button
                 disabled={busy}
                 onClick={() => {
+                  setError('');
                   setDuplicateTitle(version.body.title + ' copy');
                   setDuplicating(true);
                 }}
@@ -342,6 +355,7 @@ export function ProcedureLibrary() {
           }}
         >
           <div className="modal-body">
+            {error && <ErrorBox error={error} />}
             <ProcedureEditor
               initial={editor.body}
               editing={editor.editing}
@@ -358,6 +372,7 @@ export function ProcedureLibrary() {
             <ProcedurePlanner
               onCancel={() => setPlanning(false)}
               onCreate={(body) => {
+                setError('');
                 setPlanning(false);
                 setEditor({ body, editing: false });
               }}
@@ -373,6 +388,7 @@ export function ProcedureLibrary() {
           }}
         >
           <div className="modal-body">
+            {error && <ErrorBox error={error} />}
             <p>
               Import creates a new procedure owned by your account. Imported definitions cannot
               execute commands, arbitrary code or external API calls.
@@ -380,6 +396,7 @@ export function ProcedureLibrary() {
             <label className="field">
               Waypoint procedure JSON
               <textarea
+                disabled={busy}
                 rows={12}
                 maxLength={100000}
                 value={importText}
@@ -409,9 +426,11 @@ export function ProcedureLibrary() {
           }}
         >
           <div className="modal-body">
+            {error && <ErrorBox error={error} />}
             <label className="field">
               New procedure name
               <input
+                disabled={busy}
                 maxLength={100}
                 value={duplicateTitle}
                 onChange={(event) => setDuplicateTitle(event.target.value)}

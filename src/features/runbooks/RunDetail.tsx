@@ -5,6 +5,7 @@ import { nextStep, writeStep, type Run } from '../../../shared/runbook';
 import { download } from '../../api';
 import { Badge, ErrorBox, Modal } from '../../components/ui';
 import { RunRecordTools } from './RunRecordTools';
+import type { RunAction } from '../../pages/Runbooks';
 import './records.css';
 
 export function RunDetail({
@@ -14,11 +15,12 @@ export function RunDetail({
 }: {
   run: Run;
   busy: boolean;
-  onAction: (action: string, body?: Record<string, unknown>) => Promise<boolean>;
+  onAction: RunAction;
 }) {
   const [note, setNote] = useState(''),
     [restore, setRestore] = useState(false),
     [confirmation, setConfirmation] = useState('');
+  const [restoreError, setRestoreError] = useState('');
   const [completedItems, setCompletedItems] = useState<string[]>([]);
   const index = nextStep(run),
     current = run.steps[index];
@@ -74,6 +76,7 @@ export function RunDetail({
             onClick={() => {
               setRestore(true);
               setConfirmation('');
+              setRestoreError('');
             }}
           >
             Restore now
@@ -175,6 +178,7 @@ export function RunDetail({
                 rows={3}
                 maxLength={2000}
                 value={note}
+                disabled={busy}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="What was done, what was checked, and whether the target is ready to restore."
               />
@@ -219,7 +223,7 @@ export function RunDetail({
                     ))
                 }
                 onClick={async () => {
-                  if (await onAction('next', { note, completedItems })) {
+                  if ((await onAction('next', { note, completedItems })).ok) {
                     setNote('');
                     setCompletedItems([]);
                   }
@@ -294,9 +298,11 @@ export function RunDetail({
               <input
                 aria-label="Confirm restoration target"
                 value={confirmation}
+                disabled={busy}
                 onChange={(e) => setConfirmation(e.target.value)}
               />
             </label>
+            {restoreError && <ErrorBox error={restoreError} />}
           </div>
           <footer>
             <button disabled={busy} onClick={() => setRestore(false)}>
@@ -306,7 +312,10 @@ export function RunDetail({
               className="primary"
               disabled={busy || confirmation !== run.target}
               onClick={async () => {
-                if (await onAction('restore', { confirmation })) setRestore(false);
+                setRestoreError('');
+                const result = await onAction('restore', { confirmation });
+                if (result.ok) setRestore(false);
+                else setRestoreError(result.error);
               }}
             >
               Restore and verify

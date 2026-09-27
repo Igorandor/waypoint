@@ -18,6 +18,47 @@ import { CreateRun } from '../features/runbooks/CreateRun';
 import { RunDetail } from '../features/runbooks/RunDetail';
 import { RunComparison } from '../features/runbooks/RunComparison';
 
+export type RunActionResult = { ok: true; warning?: string } | { ok: false; error: string };
+export type RunAction = (
+  action: string,
+  body?: Record<string, unknown>,
+) => Promise<RunActionResult>;
+
+export async function performRunAction(
+  id: string,
+  action: string,
+  body: Record<string, unknown>,
+  publishRun: (run: Run) => void,
+  publishList: (runs: RunSummary[]) => void,
+  transport: typeof request = request,
+): Promise<RunActionResult> {
+  let updated: Run;
+  try {
+    updated = await transport<Run>('runs/' + id + '/' + action, body);
+  } catch (cause) {
+    return {
+      ok: false,
+      error:
+        (cause as Error).message +
+        ' Refresh this run before retrying if the connection was interrupted.',
+    };
+  }
+  // The returned record confirms the action independently of the history list.
+  publishRun(updated);
+  try {
+    publishList(await transport<RunSummary[]>('runs'));
+    return { ok: true };
+  } catch (cause) {
+    return {
+      ok: true,
+      warning:
+        'The action was saved, but the run list could not be refreshed. ' +
+        (cause as Error).message +
+        ' Use Refresh runs to update the list; do not repeat the action.',
+    };
+  }
+}
+
 export function Runbooks() {
   const [runs, setRuns] = useState<RunSummary[]>([]),
     [run, setRun] = useState<Run>(),
@@ -68,20 +109,17 @@ export function Runbooks() {
       setBusy(false);
     }
   }
-  async function action(action: string, body: Record<string, unknown> = {}) {
-    if (!run) return false;
+  async function action(
+    action: string,
+    body: Record<string, unknown> = {},
+  ): Promise<RunActionResult> {
+    if (!run) return { ok: false, error: 'Select a run before performing this action.' };
     setBusy(true);
     setError('');
     try {
-      setRun(await request('runs/' + run.id + '/' + action, body));
-      setRuns(await request('runs'));
-      return true;
-    } catch (e) {
-      setError(
-        (e as Error).message +
-          ' Refresh this run before retrying if the connection was interrupted.',
-      );
-      return false;
+      const result = await performRunAction(run.id, action, body, setRun, setRuns);
+      setError(result.ok ? (result.warning ?? '') : result.error);
+      return result;
     } finally {
       setBusy(false);
     }

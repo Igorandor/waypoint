@@ -9,7 +9,7 @@ import { useData } from '../hooks';
 import { Badge, ErrorBox, Loading, PageHeader } from '../components/ui';
 import { Evidence, human } from '../components/DataView';
 import { CommandFields } from './CommandFields';
-type Candidate = {
+export type Candidate = {
   title: string;
   path: string;
   method: 'PUT' | 'POST' | 'DELETE';
@@ -22,6 +22,87 @@ type Candidate = {
   destructive: boolean;
   review?: CommandResult;
 };
+
+export function acceptCommandReview(candidate: Candidate, review: CommandResult): Candidate {
+  return {
+    ...candidate,
+    stage: 'review',
+    confirm: '',
+    review,
+    // The operator confirms the fresh server review, not the earlier inspection.
+    base: candidate.base ? (review.before ?? undefined) : undefined,
+  };
+}
+
+type CommandAttempt =
+  | { sent: false; draft: Candidate; error: string }
+  | {
+      sent: true;
+      receipt: CommandResult | Pick<CommandResult, 'id' | 'status' | 'message'>;
+      error: string;
+    };
+
+/** Preserve preparation failures separately from an execution whose result may be unknown. */
+export async function submitCommandCandidate(
+  command: Candidate,
+  transport: {
+    readCurrent: () => Promise<Record<string, unknown>>;
+    execute: (id: string, confirmation: string) => Promise<CommandResult>;
+    readReceipt: (id: string) => Promise<CommandResult>;
+  },
+): Promise<CommandAttempt> {
+  if (!command.review) throw new Error('Review this command before executing it.');
+  try {
+    if (command.base) {
+      const current = await transport.readCurrent();
+      const affected =
+        command.method === 'DELETE' ? Object.keys(command.base) : Object.keys(command.body);
+      const conflicts = changedKeys(
+        command.base,
+        Object.fromEntries(affected.map((key) => [key, true])),
+        current,
+      );
+      if (conflicts.length) throw new Error('Native state changed: ' + conflicts.join(', ') + '.');
+    }
+  } catch (cause) {
+    return {
+      sent: false,
+      draft: { ...command, stage: 'prepare', confirm: '', review: undefined },
+      error:
+        'No command was sent. ' +
+        (cause as Error).message +
+        ' Your draft is preserved. Review it again against the current target.',
+    };
+  }
+  try {
+    const receipt = await transport.execute(
+      command.review.id,
+      command.destructive ? command.confirm : command.review.confirmation,
+    );
+    return { sent: true, receipt, error: '' };
+  } catch (cause) {
+    let receipt: CommandAttempt & { sent: true };
+    try {
+      receipt = {
+        sent: true,
+        receipt: await transport.readReceipt(command.review.id),
+        error: (cause as Error).message,
+      };
+    } catch {
+      receipt = {
+        sent: true,
+        receipt: {
+          id: command.review.id,
+          status: 'uncertain',
+          message:
+            'The outcome could not be retrieved. Open command history before sending another write.',
+        },
+        error: (cause as Error).message,
+      };
+    }
+    return receipt;
+  }
+}
 export function Operations({ area, operator }: { area: string; operator: string }) {
   const options = targets.filter((target) => target.area === area);
   const [chosen, setChosen] = useState(options[0].id);
@@ -155,44 +236,23 @@ function TargetStation({ target, operator }: { target: Target; operator: string 
     setBusy(true);
     setError('');
     try {
-      if (command.base) {
-        const current = (await iris(target.record, queryFor('GET', command.identity))).data;
-        const affected =
-          command.method === 'DELETE' ? Object.keys(command.base) : Object.keys(command.body);
-        const conflicts = changedKeys(
-          command.base,
-          Object.fromEntries(affected.map((key) => [key, true])),
-          current,
-        );
-        if (conflicts.length)
-          throw new Error(
-            'Native state changed: ' +
-              conflicts.join(', ') +
-              '. Reload the target and prepare a new command.',
-          );
-      }
-      const result = await request('commands/' + command.review!.id + '/execute', {
-        confirmation: command.destructive ? command.confirm : command.review!.confirmation,
+      const result = await submitCommandCandidate(command, {
+        readCurrent: async () =>
+          (await iris(target.record, queryFor('GET', command.identity))).data,
+        execute: (id, confirmation) => request('commands/' + id + '/execute', { confirmation }),
+        readReceipt: (id) => request('commands/' + id),
       });
-      setReceipt(result);
+      setError(result.error);
+      if (!result.sent) {
+        setPending(result.draft);
+        setReceipt(undefined);
+        return;
+      }
+      setReceipt(result.receipt);
       setPending(undefined);
       setDetail(undefined);
       setIdentity('');
       records.refresh();
-    } catch (e) {
-      setError((e as Error).message);
-      try {
-        setReceipt(await request('commands/' + command.review!.id));
-      } catch {
-        setReceipt({
-          id: command.review!.id,
-          status: 'uncertain',
-          message:
-            'The outcome could not be retrieved. Open command history before sending another write.',
-        });
-      }
-      setPending(undefined);
-      setDetail(undefined);
     } finally {
       setBusy(false);
     }
@@ -220,7 +280,7 @@ function TargetStation({ target, operator }: { target: Target; operator: string 
         },
         selection,
       });
-      setPending({ ...pending, stage: 'review', review });
+      setPending(acceptCommandReview(pending, review));
     } catch (cause) {
       setError((cause as Error).message);
     } finally {
@@ -389,12 +449,14 @@ function TargetStation({ target, operator }: { target: Target; operator: string 
                   value={redact({
                     target: pending.query,
                     before: pending.review?.before
-                      ? Object.fromEntries(
-                          Object.keys(pending.review.proposed).map((key) => [
-                            key,
-                            pending.review?.before?.[key],
-                          ]),
-                        )
+                      ? pending.method === 'DELETE'
+                        ? pending.review.before
+                        : Object.fromEntries(
+                            Object.keys(pending.review.proposed).map((key) => [
+                              key,
+                              pending.review?.before?.[key],
+                            ]),
+                          )
                       : undefined,
                     proposed:
                       pending.method === 'DELETE'
