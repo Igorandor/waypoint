@@ -58,3 +58,7 @@ See PROVENANCE.md, CONTEST_SECURITY_REVIEW.md and DEPLOYMENT.md for origins, bou
 ## Final independent release verification
 
 September 27 addition: the product is now Waypoint, with its own namespace, package and /api/waypoint extension. The complete set has 97 tests, including configurable observation validation and engine execution without native writes. A real eight-source plan completed 8/8 steps, and its stored report reopened successfully. Earlier reports survived the rename. Native installation, authorization, smoke, workflows and runbooks were rerun under the new name; the Waypoint.DemoTask worker also passed suspend/resume/terminate. The renamed native image built successfully. Desktop and 390 × 844 layouts were inspected. The attempted browser download-event automation timed out and is not claimed as a successful on-disk export.
+
+## Native observation ownership — September 27, 2026
+
+Native target lists now stay bound to their path/query scope. Same-source transient errors preserve the last read; access denial removes it. Production builds and 201 Node tests pass, plus 12 standalone real-React browser checks from `npm run test:hook-browser`. Desktop/mobile production-client checks passed using synthetic responses. See [reproduction, standalone test instructions and limits](NATIVE_OBSERVATION_OWNERSHIP.md).
