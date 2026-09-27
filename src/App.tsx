@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
   Activity,
   Workflow,
@@ -164,20 +164,77 @@ export default function App() {
             <Observations key={page} area={page} />
           ) : null}
         </Suspense>
-        {finder && (
-          <Modal title="Find a tool" onClose={() => setFinder(false)}>
-            <div className="tool-finder">
-              {navigation.map((item) => (
-                <button key={item.id} onClick={() => navigate(item.id)}>
-                  <item.icon size={19} />
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </Modal>
-        )}
+        {finder && <ToolFinder onClose={() => setFinder(false)} navigate={navigate} />}
       </WaypointShell>
     </div>
+  );
+}
+const toolKeywords: Record<string, string> = {
+  'operations-desk': 'handover restoration follow-up',
+  runbooks: 'runs maintenance restore',
+  procedures: 'plans checklist versions',
+  'command-history': 'receipts reconcile changes',
+  overview: 'health instance status',
+  'capacity-watch': 'cpu memory disk samples',
+  apps: 'web routes csp rest',
+  'application-readiness': 'dependencies prerequisites',
+  permissions: 'user users role roles resource resources access',
+  security: 'wallet certificate certificates x509 tls ssl oauth secrets',
+  tasks: 'schedule jobs',
+  'task-readiness': 'history schedule execution',
+  system: 'process pid device database storage',
+  logs: 'audit journal messages alerts',
+  'log-investigation': 'log context bookmarks',
+  explorer: 'api endpoints',
+};
+function ToolFinder({
+  onClose,
+  navigate,
+}: {
+  onClose: () => void;
+  navigate: (id: string) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    input.current?.focus();
+  }, []);
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const matches = navigation.filter((item) => {
+    const searchable = `${item.label} ${toolKeywords[item.id] ?? ''}`.toLowerCase();
+    return terms.every((term) => searchable.includes(term));
+  });
+  return (
+    <Modal title="Find a tool" onClose={onClose}>
+      <div className="tool-finder-search">
+        <label className="field">
+          Search tools
+          <input
+            ref={input}
+            autoFocus
+            value={query}
+            maxLength={100}
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="Name or keyword"
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </label>
+        <p className="muted" role="status">
+          {matches.length
+            ? `${matches.length} matching ${matches.length === 1 ? 'tool' : 'tools'}`
+            : 'No matching tools. Try another name or keyword.'}
+        </p>
+      </div>
+      <div className="tool-finder">
+        {matches.map((item) => (
+          <button key={item.id} onClick={() => navigate(item.id)}>
+            <item.icon size={19} />
+            {item.label}
+          </button>
+        ))}
+      </div>
+    </Modal>
   );
 }
 function SignIn({ error: external, onSignIn }: { error: string; onSignIn: (value: any) => void }) {
