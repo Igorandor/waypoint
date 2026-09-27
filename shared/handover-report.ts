@@ -1,5 +1,6 @@
 import type { Run } from './runbook.js';
 import { assertionCounts } from './run-records.js';
+import { observationSources } from './procedure.js';
 
 export function escapeReport(value: unknown): string {
   return String(value ?? '').replace(
@@ -18,6 +19,15 @@ function block(value: unknown) {
       : '') +
     '</pre>'
   );
+}
+function observationMetadata(step: Run['steps'][number]) {
+  const observation = step.procedureStep;
+  if (observation?.kind !== 'observation') return '';
+  const source = Object.hasOwn(observationSources, observation.source)
+    ? observationSources[observation.source]
+    : undefined;
+  const label = source ? `${source.title} (${observation.source})` : observation.source;
+  return `<dt>Source</dt><dd>${escapeReport(label)}</dd><dt>Target</dt><dd>${escapeReport(observation.target || 'No specific target')}</dd>`;
 }
 export function handoverHtml(run: Run) {
   const checks = assertionCounts(run);
@@ -46,7 +56,7 @@ ${run.needsRestore ? '<div class="notice"><strong>RESTORATION STILL REQUIRED</st
 <h3>Reference addresses</h3><ul>${(run.handover?.references ?? []).map((reference) => '<li>' + text(reference) + '</li>').join('')}</ul>
 <h2>Checks</h2><p>${checks.passed} passed · ${checks.failed} failed · ${checks.unknown} unknown. A completed run means its steps were recorded; it does not mean every assertion passed.</p>
 ${run.procedure ? '<p>Procedure ' + text(run.procedure.id) + ', immutable version ' + text(run.procedure.version.number) + '</p>' : ''}
-<h2>Step results</h2>${run.steps.map((step, index) => `<section class="step"><h3>${index + 1}. ${text(step.title)}</h3><p>${text(step.description)}</p><dl><dt>Status</dt><dd>${text(step.status)}</dd><dt>Attempts</dt><dd>${text(step.attempts)}</dd><dt>Recorded at</dt><dd>${text(step.finishedAt || step.startedAt || 'Not started')}</dd></dl>${step.error ? '<p><strong>Error:</strong> ' + text(step.error) + '</p>' : ''}${step.note ? '<p><strong>Operator note:</strong> ' + text(step.note) + '</p>' : ''}${step.evidence === undefined ? '<p>No result recorded.</p>' : block(step.evidence)}</section>`).join('')}
+<h2>Step results</h2>${run.steps.map((step, index) => `<section class="step"><h3>${index + 1}. ${text(step.title)}</h3><p>${text(step.description)}</p><dl>${observationMetadata(step)}<dt>Status</dt><dd>${text(step.status)}</dd><dt>Attempts</dt><dd>${text(step.attempts)}</dd><dt>Recorded at</dt><dd>${text(step.finishedAt || step.startedAt || 'Not started')}</dd></dl>${step.error ? '<p><strong>Error:</strong> ' + text(step.error) + '</p>' : ''}${step.note ? '<p><strong>Operator note:</strong> ' + text(step.note) + '</p>' : ''}${step.evidence === undefined ? '<p>No result recorded.</p>' : block(step.evidence)}</section>`).join('')}
 <h2>Operator notes</h2>${(run.notes ?? []).map((note) => '<section><h3>' + text(note.category) + '</h3><small>' + text(note.at) + ' · ' + text(note.author) + '</small><p>' + text(note.text) + '</p></section>').join('')}
 <h2>Run journal</h2><table><thead><tr><th>Time</th><th>Event</th></tr></thead><tbody>${run.events.map((event) => '<tr><td>' + text(event.at) + '</td><td>' + text(event.message) + '</td></tr>').join('')}</tbody></table>
 <footer><p>This report contains operating data. Share it only with the intended recipients. Observations may be incomplete or time-dependent; consult the recorded source and time before acting.</p></footer>
