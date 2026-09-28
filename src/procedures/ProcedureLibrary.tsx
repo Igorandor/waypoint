@@ -11,6 +11,7 @@ import {
   PROCEDURE_IMPORT_TEXT_BYTES,
 } from '../../shared/procedure-import';
 import { request, download, RequestError } from '../api';
+import type { Run, RunSummary } from '../../shared/runbook';
 import { Badge, ErrorBox, Loading, Modal, PageHeader } from '../components/ui';
 import { ProcedureEditor, blankProcedure } from './ProcedureEditor';
 import { ProcedurePlanner, ProcedureReadiness } from './ProcedurePlanner';
@@ -27,6 +28,12 @@ export function ProcedureLibrary({ active = true }: { active?: boolean }) {
   const [selected, setSelected] = useState<Procedure>();
   const [versionNumber, setVersionNumber] = useState(1);
   const [actionBusy, setBusy] = useState(false);
+  const [uncertainRuns, setUncertainRuns] = useState<
+    Record<string, { title: string; runs?: RunSummary[]; error?: string }>
+  >({});
+  const recoveryButton = useRef<HTMLButtonElement>(null);
+  const uncertainCreationKeys = useRef(new Set<string>());
+
   const [returnCheckPending, setReturnCheckPending] = useState(false);
   const navigationEpoch = useRef(0);
   const returning = active && returnCheckPending;
@@ -52,6 +59,104 @@ export function ProcedureLibrary({ active = true }: { active?: boolean }) {
   const selectedUnverified = !!selected && (returning || unverified.has(selected.id));
   const editorUnverified = !!editor?.editing && (returning || unverified.has(editor.id));
   const version = selected?.versions.find((item) => item.number === versionNumber);
+  const creationKey = selected && version ? JSON.stringify([selected.id, version.number]) : '';
+  const uncertainRun = uncertainRuns[creationKey];
+  useEffect(() => {
+    if (active && uncertainRun && !busy && !selectedUnverified) recoveryButton.current?.focus();
+  }, [creationKey, Boolean(uncertainRun), busy, active, selectedUnverified]);
+  useEffect(() => {
+    if (!active)
+      setUncertainRuns((current) =>
+        Object.fromEntries(
+          Object.entries(current).map(([key, value]) => [key, { title: value.title }]),
+        ),
+      );
+  }, [active]);
+  function openRun(id: string) {
+    window.dispatchEvent(new CustomEvent('waypoint-run-created', { detail: id }));
+    location.hash = 'runbooks';
+  }
+  async function createProcedureRun() {
+    if (!selected || !version || uncertainCreationKeys.current.has(creationKey)) return;
+    const key = creationKey,
+      id = selected.id,
+      number = version.number,
+      title = version.body.title;
+    await perform(async () => {
+      try {
+        const run = await request<Run>('procedures/' + id + '/run', { version: number });
+        if (
+          !run ||
+          typeof run.id !== 'string' ||
+          !/^[0-9a-f-]{36}$/i.test(run.id) ||
+          run.procedure?.id !== id ||
+          run.procedure.version?.number !== number
+        )
+          throw new RequestError(
+            'Unrecognized saved run response. Check saved runs before creating another plan.',
+            201,
+          );
+        openRun(run.id);
+      } catch (cause) {
+        if (
+          cause instanceof TypeError ||
+          (cause instanceof RequestError &&
+            ((cause.status >= 200 && cause.status < 300) || cause.status >= 500))
+        ) {
+          uncertainCreationKeys.current.add(key);
+          setUncertainRuns((current) => ({ ...current, [key]: { title } }));
+        }
+        const access =
+          cause instanceof RequestError && cause.status === 403 ? await confirmReadAccess(id) : '';
+        throw new Error((cause as Error).message + access);
+      }
+    }, id);
+  }
+  async function checkCreatedRuns() {
+    if (!selected || !uncertainRun) return;
+    const key = creationKey,
+      title = uncertainRun.title,
+      epoch = navigationEpoch.current;
+    await perform(async () => {
+      setUncertainRuns((current) =>
+        Object.fromEntries(
+          Object.entries(current).map(([entry, value]) => [entry, { title: value.title }]),
+        ),
+      );
+      try {
+        const runs = await readProtected<RunSummary[]>(
+          'runs',
+          () => {},
+          () => {},
+        );
+        if (epoch !== navigationEpoch.current) return;
+        if (
+          !Array.isArray(runs) ||
+          runs.some(
+            (run) =>
+              !run ||
+              typeof run.id !== 'string' ||
+              !/^[0-9a-f-]{36}$/i.test(run.id) ||
+              typeof run.title !== 'string' ||
+              typeof run.createdAt !== 'string' ||
+              !Number.isFinite(Date.parse(run.createdAt)) ||
+              !['active', 'completed', 'stopped'].includes(run.status),
+          )
+        )
+          throw new Error(
+            'Saved run history could not be read. Try again before allowing another plan.',
+          );
+        setUncertainRuns((current) => ({ ...current, [key]: { title, runs } }));
+      } catch (cause) {
+        if (epoch === navigationEpoch.current)
+          setUncertainRuns((current) => ({
+            ...current,
+            [key]: { title, error: (cause as Error).message },
+          }));
+      }
+    }, selected.id);
+  }
+
   const readList = () =>
     readProtected<ProcedureSummary[]>('procedures', setList, () => setList([]));
   const readDetail = (id: string, selecting = false) => {
@@ -479,26 +584,72 @@ export function ProcedureLibrary({ active = true }: { active?: boolean }) {
                 />
               </details>
             )}
+            {uncertainRun && (
+              <section
+                className="notice warning procedure-run-recovery"
+                aria-label="Unconfirmed run creation"
+              >
+                <p role="status">
+                  Creation of {uncertainRun.title}, version {version.number}, could not be
+                  confirmed. The plan may have been saved. No run steps were executed. Check saved
+                  runs before creating another plan.
+                </p>
+                {uncertainRun.error && <ErrorBox error={uncertainRun.error} />}
+                <button
+                  ref={recoveryButton}
+                  disabled={busy}
+                  onClick={() => void checkCreatedRuns()}
+                >
+                  Check saved runs
+                </button>
+                {uncertainRun.runs && (
+                  <>
+                    <p>
+                      Recent saved runs for this account. These are not automatically matched to
+                      this request. An absent run does not prove that creation failed.
+                    </p>
+                    <ul>
+                      {[...uncertainRun.runs]
+                        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+                        .slice(0, 10)
+                        .map((run) => (
+                          <li key={run.id}>
+                            <strong>{run.title}</strong> -{' '}
+                            {new Date(run.createdAt).toLocaleString()} - {run.status}
+                            <button disabled={busy} onClick={() => openRun(run.id)}>
+                              Open run
+                            </button>
+                          </li>
+                        ))}
+                    </ul>
+                    <p>
+                      {Math.min(10, uncertainRun.runs.length)} of {uncertainRun.runs.length} saved
+                      runs shown. Use Runbooks to inspect the full history.
+                    </p>
+                    <button
+                      disabled={busy}
+                      onClick={() => {
+                        setUncertainRuns((current) => {
+                          const next = { ...current };
+                          delete next[creationKey];
+                          uncertainCreationKeys.current.delete(creationKey);
+                          return next;
+                        });
+                        setError('');
+                      }}
+                    >
+                      I checked saved runs; allow another plan
+                    </button>
+                  </>
+                )}
+              </section>
+            )}
             <footer>
               <span>A run keeps this version even if the procedure is edited later.</span>
               <button
                 className="primary"
-                disabled={busy || selected.archived}
-                onClick={() =>
-                  void perform(async () => {
-                    const run = await mutate(
-                      'procedures/' + selected.id + '/run',
-                      {
-                        version: version.number,
-                      },
-                      selected.id,
-                    );
-                    window.dispatchEvent(
-                      new CustomEvent('waypoint-run-created', { detail: run.id }),
-                    );
-                    location.hash = 'runbooks';
-                  }, selected.id)
-                }
+                disabled={busy || selected.archived || Boolean(uncertainRun)}
+                onClick={() => void createProcedureRun()}
               >
                 <Play size={16} /> Create run from version {version.number}
               </button>

@@ -101,6 +101,11 @@ export function RunDetail({
         </Badge>
         <span>Started {new Date(run.createdAt).toLocaleString()}</span>
         <span>Operator {run.owner}</span>
+        {run.procedure && (
+          <span className="run-procedure-identity">
+            Procedure {run.procedure.id} - version {run.procedure.version.number}
+          </span>
+        )}
       </div>
       {run.needsRestore && (
         <div className="restoration-banner">

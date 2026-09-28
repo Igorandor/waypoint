@@ -467,3 +467,8 @@
 .observation-choice input {
   width: auto;
 }
+
+.run-procedure-identity {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

@@ -1,5 +1,13 @@
 # Verification record
 
+## Recovering procedure-run creation — September 28, 2026
+
+Release 1.0.16 blocks an immediate repeat after an unconfirmed procedure-run creation. The guard belongs to the selected procedure and immutable version. It covers lost transport, malformed successful responses and server failures; definite refusals remain retryable. Explicit recovery reads up to ten recent saved-run summaries without claiming an automatic match. Successful or empty history does not clear the guard until the operator acknowledges checking records. Failed history reads clear cached summaries and display the reason beside the recovery control. Leaving the tool clears history evidence while retaining uncertainty, and late reads cannot restore it. Run details identify the saved procedure ID and version.
+
+Build and 247 tests pass, plus 18 actual-component browser checks of uncertain/refused/successful creation, pending duplicate clicks, version switching, history refusal/malformed rows/empty results, explicit acknowledgement, navigation and late responses, and actual run-detail identity. The before fixture reproduced two saved synthetic plan IDs after two clicks around a lost response. No native calls or durable writes were made.
+
+Manual desktop and 390px checks with production styles verified focus on recovery, blocked repeat, readable history, inline read failure and the exact saved procedure version. Empty history still needs an explicit decision; opening a record executes no step. The phone document remains 390/390px client/scroll width. This is a page-memory safeguard, not server idempotency: after a full browser reload the operator must inspect Runbooks before repeating interrupted creation. These checks do not certify native authorization or physical devices.
+
 ## Assertion references in handover reports — September 28, 2026
 
 Printable reports identify the exact observation referenced by an assertion using its step number, title and procedure identifier, followed by source and target. Two observations with identical titles remain distinguishable. A missing or wrong-kind reference is reported explicitly. The wording also applies to an unexecuted check; recorded outcomes are not recalculated.

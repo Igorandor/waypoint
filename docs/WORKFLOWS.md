@@ -32,7 +32,9 @@ A denied or missing record cannot be inspected through that account. Use **Open 
 
 ## Execute and preserve evidence
 
-Create a run from a selected immutable version. Each step is explicitly executed. Checklists preserve completed item IDs, the account and its note. Assertions return passed, failed or unknown; missing fields never produce a pass. Capacity assertions compare typed native available/total values against an explicit percentage and retain the measurement.
+Create a run from a selected immutable version. If the creation response cannot be confirmed, use **Check saved runs** before trying again. This reads recent saved plans; it does not execute steps or automatically identify a matching procedure. Open a candidate and inspect its procedure identifier and immutable version. A missing entry does not prove that the first request failed. Only allow another plan after checking the saved records; a failed history read keeps creation blocked. This warning is retained while the page remains open, including switching procedures or tools; after a full browser reload, inspect Runbooks before repeating an interrupted creation.
+
+Each step is explicitly executed. Checklists preserve completed item IDs, the account and its note. Assertions return passed, failed or unknown; missing fields never produce a pass. Capacity assertions compare typed native available/total values against an explicit percentage and retain the measurement.
 
 Use the run's notes for observations or decisions without rewriting prior notes. Store a handover summary, risks, next actions and deadlines when work continues across shifts. Delivery is an owner declaration only; Waypoint sends no messages and transfers no ownership. Printable packages escape content and disable active scripts and network content.
 

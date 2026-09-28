@@ -274,3 +274,17 @@
     gap: 5px;
   }
 }
+
+.procedure-run-recovery {
+  overflow-wrap: anywhere;
+}
+.procedure-run-recovery ul {
+  padding-left: 20px;
+}
+.procedure-run-recovery li {
+  margin: 12px 0;
+}
+.procedure-run-recovery li button {
+  display: block;
+  margin-top: 4px;
+}
