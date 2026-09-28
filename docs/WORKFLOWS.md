@@ -36,6 +36,8 @@ Create a run from a selected immutable version. Each step is explicitly executed
 
 Use the run's notes for observations or decisions without rewriting prior notes. Store a handover summary, risks, next actions and deadlines when work continues across shifts. Delivery is an owner declaration only; Waypoint sends no messages and transfers no ownership. Printable packages escape content and disable active scripts and network content.
 
+For an assertion in the printable report, **Referenced observation** identifies its source step by number, title and procedure identifier, with the observation's source and target. Use that reference to find the recorded evidence even when several steps have the same title. A missing reference is reported explicitly; the report does not guess a source or rerun the check.
+
 After closing a run without unresolved restoration, archive it. Compare completed observations by source, target and occurrence. Known root inventories align by application/journal name or stable task ID. Ordered configuration arrays keep their positions. A process inventory needs PID, job number and start time to establish generation identity; otherwise its rows are compared by position. Missing/failed sources and truncated values remain partial evidence, not proof of object deletion.
 
 ## Investigate capacity and logs

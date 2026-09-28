@@ -85,7 +85,7 @@ test('an instance-wide observation does not invent a target identifier', () => {
   assert.match(stepHtml(run), /<dt>Target<\/dt><dd>No specific target<\/dd>/);
 });
 
-test('legacy steps and non-observation procedure steps keep their existing report metadata', () => {
+test('legacy steps retain their report metadata and missing assertion sources are explicit', () => {
   const run = recorded();
   delete run.steps[0].procedureStep;
   const legacy = stepHtml(run);
@@ -101,5 +101,110 @@ test('legacy steps and non-observation procedure steps keep their existing repor
     sourceStepId: 'read-scheduling',
     expected: false,
   };
-  assert.equal(stepHtml(run), legacy);
+  const missing = stepHtml(run);
+  assert.match(
+    missing,
+    /Referenced observation<\/dt><dd>Not available in this run \(read-scheduling\)/,
+  );
+  assert.match(missing, /<dt>Status<\/dt><dd>done<\/dd>/);
+  assert.doesNotMatch(missing, /<dt>Source<\/dt>|<dt>Target<\/dt>/);
+});
+
+function assertionRun(): Run {
+  const run = recorded();
+  const second = structuredClone(run.steps[0]);
+  assert.ok(second.procedureStep?.kind === 'observation');
+  second.procedureStep.id = 'read-second';
+  second.procedureStep.target = '8392';
+  second.evidence = { Suspended: true };
+  run.steps.push(second, {
+    kind: 'info',
+    title: 'Review scheduling',
+    description: 'Review the second observation.',
+    status: 'done',
+    attempts: 1,
+    procedureStep: {
+      id: 'assert-second',
+      kind: 'assertion',
+      title: 'Review scheduling',
+      instruction: '',
+      check: 'task-suspended',
+      sourceStepId: 'read-second',
+      expected: false,
+    },
+    evidence: {
+      outcome: 'failed',
+      sourceStepId: 'read-second',
+      check: 'task-suspended',
+      expected: false,
+      observed: true,
+      message: 'Recorded scheduling differs.',
+    },
+  });
+  return run;
+}
+function assertionHtml(run: Run) {
+  return stepHtml(run).split('<section class="step">')[3];
+}
+test('same-titled observations are joined by exact ID and identify the referenced source and target', () => {
+  const run = assertionRun(),
+    original = structuredClone(run);
+  const html = assertionHtml(run);
+  assert.match(html, /Referenced observation<\/dt><dd>2\. Check scheduling \(read-second\)/);
+  assert.match(html, /Source<\/dt><dd>Task scheduling state \(task-state\)/);
+  assert.match(html, /Target<\/dt><dd>8392/);
+  assert.doesNotMatch(html, /<dd>7241<\/dd>/);
+  assert.match(html, /&quot;outcome&quot;: &quot;failed&quot;/);
+  assert.deepEqual(run, original);
+});
+test('reference metadata is neutral for pending and unknown assertions and does not evaluate evidence', () => {
+  const run = assertionRun(),
+    step = run.steps[2];
+  step.status = 'pending';
+  step.attempts = 0;
+  delete step.evidence;
+  let html = assertionHtml(run);
+  assert.match(html, /Referenced observation<\/dt><dd>2\. Check scheduling/);
+  assert.match(html, /Status<\/dt><dd>pending/);
+  assert.match(html, /No result recorded/);
+  assert.doesNotMatch(html, /outcome|Checked observation/);
+  step.status = 'done';
+  step.evidence = {
+    outcome: 'unknown',
+    sourceStepId: 'read-second',
+    message: 'Required typed state absent.',
+  };
+  html = assertionHtml(run);
+  assert.match(html, /&quot;outcome&quot;: &quot;unknown&quot;/);
+  assert.match(html, /Required typed state absent/);
+  assert.doesNotMatch(html, /&quot;outcome&quot;: &quot;failed&quot;/);
+});
+test('missing or wrong-kind references never fall back to matching titles', () => {
+  const run = assertionRun();
+  const assertion = run.steps[2].procedureStep;
+  assert.ok(assertion?.kind === 'assertion');
+  assertion.sourceStepId = 'missing-observation';
+  assert.match(assertionHtml(run), /Not available in this run \(missing-observation\)/);
+  assertion.sourceStepId = 'assert-second';
+  const html = assertionHtml(run);
+  assert.match(html, /Not available in this run \(assert-second\)/);
+  assert.doesNotMatch(html, /<dt>Source<\/dt>|<dt>Target<\/dt>/);
+});
+test('reference labels, identifiers and source metadata are escaped as report text', () => {
+  const run = assertionRun();
+  const source = run.steps[1].procedureStep,
+    assertion = run.steps[2].procedureStep;
+  assert.ok(source?.kind === 'observation' && assertion?.kind === 'assertion');
+  source.id = assertion.sourceStepId = '<source&"id">';
+  run.steps[1].title = '<script>bad()</script>';
+  source.target = '<img src=x onerror=bad()> & target';
+  source.source = '<source>' as ObservationSource;
+  const html = assertionHtml(run);
+  assert.match(
+    html,
+    /2\. &lt;script&gt;bad\(\)&lt;\/script&gt; \(&lt;source&amp;&quot;id&quot;&gt;\)/,
+  );
+  assert.match(html, /<dt>Source<\/dt><dd>&lt;source&gt;<\/dd>/);
+  assert.match(html, /&lt;img src=x onerror=bad\(\)&gt; &amp; target/);
+  assert.doesNotMatch(html, /<script|<img/);
 });

@@ -1,5 +1,11 @@
 # Verification record
 
+## Assertion references in handover reports — September 28, 2026
+
+Printable reports identify the exact observation referenced by an assertion using its step number, title and procedure identifier, followed by source and target. Two observations with identical titles remain distinguishable. A missing or wrong-kind reference is reported explicitly. The wording also applies to an unexecuted check; recorded outcomes are not recalculated.
+
+Production build and 247 tests pass, including eight report tests covering exact references, pending/unknown results, missing references, escaping and legacy output. A schema-valid synthetic run reproduced the missing connection before the change. Manual inspection of the actual generated HTML confirms the failed check refers to step 2 and target 202, with matching client/scroll widths of 1265px on desktop and 375px inside a 390px frame. No native calls or durable writes were made. This does not certify physical printing or completion of a browser download.
+
 ## Procedure import error locations — September 28, 2026
 
 Release 1.0.14 keeps JSON paths in procedure-import validation errors, including array positions and envelope-level errors. The parser retains the original explanation and existing strict validation. Invalid input stays in the dialog; supported IDs, references and false values survive validation without rewriting.
