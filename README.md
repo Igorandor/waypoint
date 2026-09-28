@@ -8,7 +8,11 @@ Built for the [InterSystems Programming Contest: Build Your Own Management Porta
 
 [Watch a maintenance and restoration run (MP4, 1:00)](https://github.com/Igorandor/waypoint/releases/download/v1.0.0/waypoint-walkthrough.mp4). The recording uses a temporary demonstration route and verifies that its original state is restored. [Release downloads](https://github.com/Igorandor/waypoint/releases/tag/v1.0.0) include the source package, English captions and transcript.
 
+[Watch the current walkthrough on YouTube](https://www.youtube.com/watch?v=ZKfUzavGfEo) (unlisted, available by link).
+
 ## Start with the Operations desk
+
+Follow [your first observation and handover](docs/FIRST_RUN.md) to collect evidence without changing IRIS, save a note and prepare a report for the next operator.
 
 1. Choose **New run → Observe an instance** and review its four steps. **Create run** saves the plan without executing it.
 2. Choose **Run next step** to capture each source. Select recorded steps and export the completed report.
@@ -200,7 +204,7 @@ See [the original project idea](IDEA.md) and [operational workflows](docs/WORKFL
 
 ## Presentation materials
 
-Watch the [video walkthrough](https://www.youtube.com/watch?v=75ABhoRBS-4). See [recording details and music credits](docs/VIDEO.md), the [Developer Community article](docs/ARTICLE.md), and [hosting status](docs/ONLINE_DEMO.md).
+Watch the [video walkthrough](https://www.youtube.com/watch?v=ZKfUzavGfEo). See [recording details and music credits](docs/VIDEO.md), the [Developer Community article](docs/ARTICLE.md), and [hosting status](docs/ONLINE_DEMO.md).
 
 ## Author
 

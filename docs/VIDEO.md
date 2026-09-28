@@ -4,7 +4,7 @@
 
 The [maintenance MP4 walkthrough](https://github.com/Igorandor/waypoint/releases/download/v1.0.0/waypoint-walkthrough.mp4) runs 1:00 and shows a complete maintenance run: inspect a temporary application route, disable it, reload with its restoration obligation retained, record evidence, restore it and verify completion. Only the route created for this recording was changed. Its enabled state was restored and independently checked, then the temporary route was removed.
 
-The recording uses actual browser interactions, edited between takes, with CC0 music and no narration. The [release](https://github.com/Igorandor/waypoint/releases/tag/v1.0.0) includes English SRT captions and a transcript. This is a separate GitHub-hosted recording; the original read-only YouTube walkthrough below remains valid. The maintenance recording has not been uploaded to YouTube.
+The recording uses actual browser interactions, edited between takes, with CC0 music and no narration. The [release](https://github.com/Igorandor/waypoint/releases/tag/v1.0.0) includes English SRT captions and a transcript. The [current YouTube walkthrough](https://www.youtube.com/watch?v=ZKfUzavGfEo) is unlisted and available by link. It was published on September 28, 2026; the updated link was sent for approval on the existing Open Exchange application. The earlier observation-only recording below remains available.
 
 ## Original YouTube recording
 
