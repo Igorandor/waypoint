@@ -16,16 +16,20 @@ import type { Run, RunSummary } from '../../shared/runbook';
 import type { CommandResult } from '../../shared/command-result';
 import type { ProcedureSummary } from '../../shared/procedure';
 import { outcomeLabels } from '../../shared/command-result';
-import { request, download } from '../api';
+import { request, download, RequestError } from '../api';
 import { Badge, ErrorBox, Loading, PageHeader } from '../components/ui';
 import { Evidence } from '../components/DataView';
 import './desk.css';
 
-async function source<T>(resource: string): Promise<DeskSource<T>> {
+async function source<T>(resource: string): Promise<DeskSource<T> & { accessDenied?: boolean }> {
   try {
     return { data: await request<T>(resource), readAt: new Date().toISOString() };
   } catch (cause) {
-    return { error: (cause as Error).message, readAt: new Date().toISOString() };
+    return {
+      error: (cause as Error).message,
+      readAt: new Date().toISOString(),
+      accessDenied: cause instanceof RequestError && cause.status === 403,
+    };
   }
 }
 export function OperationsDesk() {
@@ -40,14 +44,38 @@ export function OperationsDesk() {
   const [run, setRun] = useState<Run>();
   const [command, setCommand] = useState<CommandResult>();
   const sequence = useRef(0);
+  const refreshSequence = useRef(0);
+  const selection = useRef<DeskIssue | undefined>(undefined);
+  function clearSelection() {
+    ++sequence.current;
+    selection.current = undefined;
+    setSelected(undefined);
+    setRun(undefined);
+    setCommand(undefined);
+    setBusy(false);
+  }
   async function refresh() {
+    const ticket = ++refreshSequence.current;
     setLoading(true);
     setError('');
+    const readSource = async <T,>(name: keyof DeskSnapshot) => {
+      const result = await source<T>(name);
+      if (ticket === refreshSequence.current && result.accessDenied) {
+        setSnapshot((current) => (current ? { ...current, [name]: result } : current));
+        if (
+          (selection.current?.link === 'run' && name === 'runs') ||
+          (selection.current?.link === 'command' && name === 'commands')
+        )
+          clearSelection();
+      }
+      return result;
+    };
     const [runs, commands, procedures] = await Promise.all([
-      source<RunSummary[]>('runs'),
-      source<DeskCommand[]>('commands'),
-      source<ProcedureSummary[]>('procedures'),
+      readSource<RunSummary[]>('runs'),
+      readSource<DeskCommand[]>('commands'),
+      readSource<ProcedureSummary[]>('procedures'),
     ]);
+    if (ticket !== refreshSequence.current) return;
     setSnapshot({ runs, commands, procedures });
     setLoading(false);
   }
@@ -55,10 +83,12 @@ export function OperationsDesk() {
     void refresh();
     return () => {
       sequence.current++;
+      refreshSequence.current++;
     };
   }, []);
   async function inspect(issue: DeskIssue) {
     const ticket = ++sequence.current;
+    selection.current = issue;
     setSelected(issue);
     setRun(undefined);
     setCommand(undefined);
@@ -70,7 +100,24 @@ export function OperationsDesk() {
       if (issue.link === 'run') setRun(record);
       else setCommand(record);
     } catch (cause) {
-      if (ticket === sequence.current) setError((cause as Error).message);
+      if (ticket !== sequence.current) return;
+      setError((cause as Error).message);
+      if (cause instanceof RequestError && [403, 404].includes(cause.status)) {
+        ++refreshSequence.current;
+        setLoading(false);
+        clearSelection();
+        setSnapshot((current) => {
+          if (!current) return current;
+          const key = issue.link === 'run' ? 'runs' : 'commands';
+          return {
+            ...current,
+            [key]: {
+              ...current[key],
+              data: current[key].data?.filter((record) => record.id !== issue.recordId),
+            },
+          };
+        });
+      }
     } finally {
       if (ticket === sequence.current) setBusy(false);
     }

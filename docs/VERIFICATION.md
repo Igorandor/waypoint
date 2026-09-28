@@ -1,5 +1,11 @@
 # Verification record
 
+## Operations desk access refresh — September 28, 2026
+
+Release 1.0.8 removes cached summaries and a matching open inspector as soon as a source refuses access, without waiting for unrelated source reads. Refused or missing individual records also disappear from the desk. Delayed detail responses and older refreshes cannot restore protected content after a newer refusal. A temporary source failure retains a previously read inspector, including a confirmed reconciliation result; unrelated source refusals do not remove readable records.
+
+The production build and 236 Node tests pass. Twenty actual OperationsDesk browser checks cover source and detail denials, missing records, transient failures, selection changes, delayed reads, immediate cleanup while another source is pending, and reconciliation result retention. Desktop checks verified immediate cleanup with a held unrelated read. At 390px, a successful synthetic reconciliation remained visible after a list503 and disappeared after a subsequent list403; readable run rows remained. Client and scroll widths both measured390px. Tests use synthetic records and transport, with no native or durable writes. Responsive checks do not constitute physical-device coverage.
+
 ## Uncertain plan creation — September 28, 2026
 
 After a lost response, unreadable success response or gateway failure, Create run previously offered a direct retry even if the first plan had already been saved. It now explains the uncertain outcome, keeps the fields and blocks another creation in that dialog. Check saved runs reads history without resending the creation. Successful history reads clear its filters for manual inspection; failed reads retain the draft and permit another read. A denied history read also removes a previously selected protected run. The client neither guesses a matching record nor concludes that an empty list proves nothing was saved. Closing and reopening deliberately starts a new creation form; this is recovery guidance, not server-side deduplication.

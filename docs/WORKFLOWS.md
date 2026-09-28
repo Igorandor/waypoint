@@ -6,6 +6,8 @@ Open Operations desk after signing in. Each source is refreshed independently wi
 
 Inspect a record before acting. The desk reads the durable record, exposes relevant step outcomes and links to its controls. Reconciliation of a command is a read. It never sends the reviewed mutation again. Other operators' runs are not displayed, although their active target reservations still block conflicting application/task commands.
 
+Use **Refresh records** to update the queue. If access to a source is refused, its cached entries and any matching open inspector are removed; other readable sources remain available. A missing or refused individual record is also removed from the desk. A temporary failure while refreshing a source leaves the previously read inspector visible, so check the source error and read time before relying on it. Refresh and inspect the record again after access is restored.
+
 ## Prepare a change
 
 Application readiness and Task readiness are separate operational dossiers. Each source reports its own permission or availability error. Configuration, live state and historical results are distinct evidence. A task may be running even when future scheduling is suspended. Native task timestamps lack a UTC offset; wall-time duration estimates and schedule explanations do not predict the next execution.
