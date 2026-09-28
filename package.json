@@ -1,10 +1,10 @@
 {
   "name": "iris-waypoint",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12.0"
   },
   "scripts": {
     "dev": "concurrently -k \"tsx watch server/index.ts\" \"vite --host 127.0.0.1\"",

@@ -1,14 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, RefreshCw, Search, ShieldCheck } from 'lucide-react';
 import {
   outcomeLabels,
   type CommandResult,
   type CommandOutcome,
 } from '../../shared/command-result';
-import { request, download } from '../api';
+import { request, download, RequestError } from '../api';
 import { Badge, ErrorBox, Loading, PageHeader } from '../components/ui';
 import { Evidence, human } from '../components/DataView';
-import { readProtected, refreshProtected } from '../protected-read';
 import './history.css';
 
 type Summary = Pick<
@@ -22,7 +21,12 @@ const statusTone = (status: CommandOutcome) =>
       ? 'warning'
       : 'neutral';
 export function CommandHistory() {
-  const [records, setRecords] = useState<Summary[]>([]);
+  const [cachedRecords, setRecords] = useState<Summary[]>([]);
+  const [unverified, setUnverified] = useState<string[]>([]);
+  const records = useMemo(
+    () => cachedRecords.filter((record) => !unverified.includes(record.id)),
+    [cachedRecords, unverified],
+  );
   const [selected, setSelected] = useState<CommandResult>();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -31,25 +35,95 @@ export function CommandHistory() {
   const [status, setStatus] = useState('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const readList = () => readProtected<Summary[]>('commands', setRecords, () => setRecords([]));
-  const readDetail = (id: string) =>
-    readProtected<CommandResult>('commands/' + id, setSelected, () => {
-      setSelected((current) => (current?.id === id ? undefined : current));
-      setRecords((current) => current.filter((record) => record.id !== id));
-    });
+  const sequence = useRef(0),
+    listSequence = useRef(0);
+  const selection = useRef<string | undefined>(undefined);
+  const notices = useRef(new Map<string, HTMLElement>());
+  const detailElement = useRef<HTMLElement>(null);
+  const focusAfterRead = useRef<{ ticket: number; id?: string } | undefined>(undefined);
+  useEffect(() => {
+    const pending = focusAfterRead.current;
+    if (!pending || pending.ticket !== sequence.current) return;
+    const target = pending.id ? notices.current.get(pending.id) : detailElement.current;
+    if (!target) return;
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({ block: 'nearest' });
+    focusAfterRead.current = undefined;
+  }, [unverified, selected]);
+  function removeRecord(id: string) {
+    ++listSequence.current;
+    setLoading(false);
+    setSelected((current) => (current?.id === id ? undefined : current));
+    if (selection.current === id) selection.current = undefined;
+    if (focusAfterRead.current?.id === id) focusAfterRead.current = undefined;
+    setRecords((current) => current.filter((record) => record.id !== id));
+    setUnverified((ids) => ids.filter((value) => value !== id));
+  }
+  async function readList(ticket: number) {
+    try {
+      const result = await request<Summary[]>('commands');
+      if (ticket === listSequence.current) setRecords(result);
+    } catch (cause) {
+      if (ticket !== listSequence.current) return;
+      if (cause instanceof RequestError && cause.status === 403) {
+        setRecords([]);
+      }
+      throw cause;
+    }
+  }
+  async function readDetail(id: string, ticket: number) {
+    try {
+      const result = await request<CommandResult>('commands/' + id);
+      if (ticket !== sequence.current) return;
+      if (result.id !== id) throw new Error('The command read returned a different record.');
+      setSelected(result);
+      selection.current = id;
+      return result;
+    } catch (cause) {
+      if (ticket !== sequence.current) return;
+      setError((cause as Error).message);
+      if (cause instanceof RequestError && [403, 404].includes(cause.status)) removeRecord(id);
+      throw cause;
+    }
+  }
   async function refresh() {
+    const listTicket = ++listSequence.current,
+      selectedTicket = sequence.current,
+      selectedId = selection.current;
     setLoading(true);
     setError('');
+    const errors: string[] = [];
     try {
-      setError(
-        await refreshProtected([readList, ...(selected ? [() => readDetail(selected.id)] : [])]),
-      );
+      try {
+        await readList(listTicket);
+      } catch (cause) {
+        errors.push((cause as Error).message);
+        if (cause instanceof RequestError && cause.status === 401) return;
+      }
+      if (
+        selectedId &&
+        selectedTicket === sequence.current &&
+        listTicket === listSequence.current
+      ) {
+        try {
+          await readDetail(selectedId, selectedTicket);
+        } catch (cause) {
+          errors.push((cause as Error).message);
+        }
+      }
     } finally {
-      setLoading(false);
+      if (listTicket === listSequence.current) {
+        setLoading(false);
+        if (selectedTicket === sequence.current) setError([...new Set(errors)].join(' '));
+      }
     }
   }
   useEffect(() => {
     void refresh();
+    return () => {
+      sequence.current++;
+      listSequence.current++;
+    };
   }, []);
   const visible = useMemo(
     () =>
@@ -70,27 +144,74 @@ export function CommandHistory() {
     [records, search, status, from, to],
   );
   async function select(id: string) {
+    const ticket = ++sequence.current;
+    selection.current = id;
+    focusAfterRead.current = undefined;
+    setSelected((current) => (current?.id === id ? current : undefined));
     setBusy(true);
     setError('');
     try {
-      await readDetail(id);
+      await readDetail(id, ticket);
     } catch (cause) {
-      setError((cause as Error).message);
+      if (ticket === sequence.current) setError((cause as Error).message);
     } finally {
-      setBusy(false);
+      if (ticket === sequence.current) setBusy(false);
+    }
+  }
+  async function recheck(id: string, refusal = '') {
+    const ticket = ++sequence.current;
+    ++listSequence.current;
+    selection.current = undefined;
+    focusAfterRead.current = { ticket, id };
+    setLoading(false);
+    setBusy(true);
+    setSelected(undefined);
+    setError(refusal);
+    setUnverified((ids) => [...new Set([...ids, id])]);
+    try {
+      const result = await readDetail(id, ticket);
+      if (!result || ticket !== sequence.current) return;
+      const summary: Summary = {
+        id: result.id,
+        title: result.title,
+        target: result.target,
+        status: result.status,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+        message: result.message,
+        operation: result.operation,
+      };
+      setRecords((current) => [...current.filter((record) => record.id !== id), summary]);
+      setUnverified((ids) => ids.filter((value) => value !== id));
+      focusAfterRead.current = { ticket };
+    } catch (cause) {
+      if (ticket === sequence.current)
+        setError([refusal, (cause as Error).message].filter(Boolean).join(' '));
+    } finally {
+      if (ticket === sequence.current) setBusy(false);
     }
   }
   async function reconcile() {
     if (!selected) return;
+    const ticket = ++sequence.current,
+      id = selected.id;
+    let reconciled = false;
     setBusy(true);
     setError('');
     try {
-      setSelected(await request('commands/' + selected.id + '/reconcile', {}));
-      await readList();
+      const result = await request<CommandResult>('commands/' + id + '/reconcile', {});
+      if (ticket !== sequence.current) return;
+      if (result.id !== id) throw new Error('The reconciliation returned a different command.');
+      setSelected(result);
+      reconciled = true;
+      await readList(++listSequence.current);
     } catch (cause) {
-      setError((cause as Error).message);
+      if (ticket !== sequence.current) return;
+      if (!reconciled && cause instanceof RequestError && [403, 404].includes(cause.status))
+        await recheck(id, (cause as Error).message);
+      else setError((cause as Error).message);
     } finally {
-      setBusy(false);
+      if (ticket === sequence.current) setBusy(false);
     }
   }
   return (
@@ -116,6 +237,32 @@ export function CommandHistory() {
         </button>
       </PageHeader>
       {error && <ErrorBox error={error} />}
+      {unverified.map((id) => (
+        <aside
+          className="notice"
+          key={id}
+          tabIndex={-1}
+          ref={(element) => {
+            if (element) notices.current.set(id, element);
+            else notices.current.delete(id);
+          }}
+        >
+          <p>
+            This command is hidden from the history and its exports until access can be checked.
+            Retrying reads the saved record; it does not resend the command.
+          </p>
+          <p>
+            <code style={{ overflowWrap: 'anywhere' }}>{id}</code>
+          </p>
+          <button
+            disabled={busy}
+            aria-label={'Retry record access for command ' + id}
+            onClick={() => void recheck(id)}
+          >
+            Retry record access
+          </button>
+        </aside>
+      ))}
       <div className="command-history-stats">
         <span>
           <strong>{records.length}</strong> visible command records
@@ -190,7 +337,7 @@ export function CommandHistory() {
           {!loading && !visible.length && <p>No commands match these filters.</p>}
         </section>
         {selected ? (
-          <section className="panel command-history-detail">
+          <section className="panel command-history-detail" ref={detailElement} tabIndex={-1}>
             <div className="section-heading">
               <div>
                 <h2>{selected.title}</h2>
@@ -246,7 +393,12 @@ export function CommandHistory() {
               )}
             </div>
             <h3>Reviewed fields</h3>
-            <div className="command-field-table">
+            <div
+              className="command-field-table"
+              role="region"
+              aria-label="Reviewed command fields"
+              tabIndex={0}
+            >
               <table>
                 <thead>
                   <tr>

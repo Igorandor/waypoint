@@ -51,6 +51,11 @@ if (process.argv.includes('--desk-access')) {
   label = 'operations desk current record access';
   entry = 'desk-access';
 }
+if (process.argv.includes('--history-reconcile')) {
+  expected = 28;
+  label = 'command history reconciliation access';
+  entry = 'history-reconcile';
+}
 if (process.argv.includes('--procedure-navigation')) {
   expected = 41;
   label = 'procedure workspace return';

@@ -24,13 +24,26 @@
   align-items: start;
 }
 .command-history-index {
+  min-width: 0;
   padding: 16px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
+}
+.command-history-index > *,
+.command-history-index input,
+.command-history-index select,
+.history-item > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.command-history-index input,
+.command-history-index select {
+  width: 100%;
 }
 .history-date-range {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 .history-date-range input {
@@ -93,6 +106,10 @@
 .command-field-table {
   width: 100%;
   overflow: auto;
+}
+.command-field-table:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 .command-field-table table {
   border-collapse: collapse;

@@ -105,7 +105,7 @@ Use IRIS Community **2026.2 with SysAdmin API v2**, or a compatible newer instan
 
    The installer creates `/api/waypoint` with password authentication and `%Admin_Operate` protection. It does **not** change existing account passwords. `iris/configure.script` provisions the bundled development image and resets its accounts; never run it on an existing environment.
 
-3. Install Node.js 22 LTS or newer and configure the portal:
+3. Install Node.js 22.12 or newer and configure the portal:
 
    ```sh
    npm ci
