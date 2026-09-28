@@ -264,11 +264,13 @@ async function run() {
     const start = requests.length;
     await lose();
     check(
-      `explicit ${status} rejection retains exact message and no ambiguous recovery`,
+      `explicit ${status} rejection retains exact message; only 403 rechecks read access`,
       content().includes(`Explicit rejection ${status}`) &&
         !content().includes('may have been applied') &&
         !button('Suspend future scheduling').disabled &&
-        requests.length === start + 1,
+        requests.length === start + (status === 403 ? 2 : 1) &&
+        (status !== 403 ||
+          (requests.at(-1).url === '/api/runs/run-a' && requests.at(-1).method === 'GET')),
     );
   }
   await mount();

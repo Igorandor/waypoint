@@ -18,6 +18,7 @@ import { IrisClient } from '../server/upstream';
 import { RunEngine } from '../server/run-engine';
 import { RunStore } from '../server/run-store';
 import { ProcedureStore } from '../server/procedure-store';
+import { RequestError } from '../src/api';
 
 const basic: ProcedureBody = {
   title: 'Import boundary',
@@ -253,7 +254,10 @@ test('actual import callback preserves pasted text and selection for rejected de
     'readList',
     'setBusy',
     'setError',
-    code + '\nreturn importDefinition();',
+    'RequestError',
+    'const selected = undefined; const actionPending = { current: false }; const unverified = new Set();\n' +
+      code +
+      '\nreturn importDefinition();',
   );
   const invalid = [
     '{broken',
@@ -345,6 +349,7 @@ test('actual import callback preserves pasted text and selection for rejected de
       (value: string) => {
         error = value;
       },
+      RequestError,
     );
     assert.equal(requests, index === invalid.length ? 1 : 0);
     assert.ok(error);

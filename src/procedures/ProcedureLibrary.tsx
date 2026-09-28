@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Archive, Copy, Download, Edit3, Play, Plus, RefreshCw, Upload } from 'lucide-react';
 import {
   observationSources,
@@ -10,12 +10,12 @@ import {
   parseProcedureImportText,
   PROCEDURE_IMPORT_TEXT_BYTES,
 } from '../../shared/procedure-import';
-import { request, download } from '../api';
+import { request, download, RequestError } from '../api';
 import { Badge, ErrorBox, Loading, Modal, PageHeader } from '../components/ui';
 import { ProcedureEditor, blankProcedure } from './ProcedureEditor';
 import { ProcedurePlanner, ProcedureReadiness } from './ProcedurePlanner';
 import { ProcedureVersionDiff } from './ProcedureVersionDiff';
-import { readProtected, refreshProtected } from '../protected-read';
+import { readProtected, readProtectedRecord, refreshProtected } from '../protected-read';
 import './procedures.css';
 
 export function ProcedureLibrary() {
@@ -36,19 +36,42 @@ export function ProcedureLibrary() {
   const [duplicateTitle, setDuplicateTitle] = useState('');
   const [duplicating, setDuplicating] = useState(false);
   const [planning, setPlanning] = useState(false);
+  const [unverified, setUnverified] = useState<Set<string>>(() => new Set());
+  const detailSequence = useRef(0);
+  const actionPending = useRef(false);
+  const selectedUnverified = !!selected && unverified.has(selected.id);
+  const editorUnverified = !!editor?.editing && unverified.has(editor.id);
   const version = selected?.versions.find((item) => item.number === versionNumber);
   const readList = () =>
     readProtected<ProcedureSummary[]>('procedures', setList, () => setList([]));
-  const readDetail = (id: string, selecting = false) =>
-    readProtected<Procedure>('procedures/' + id, selecting ? show : setSelected, () => {
-      setSelected((current) => (current?.id === id ? undefined : current));
-      setList((current) => current.filter((record) => record.id !== id));
-      if (selected?.id === id) {
-        setEditor((current) => (current?.editing ? undefined : current));
-        setDuplicating(false);
-        setDuplicateTitle('');
-      }
-    });
+  const readDetail = (id: string, selecting = false) => {
+    const sequence = ++detailSequence.current;
+    const verified = () =>
+      setUnverified((current) => {
+        const remaining = new Set(current);
+        remaining.delete(id);
+        return remaining;
+      });
+    return readProtectedRecord<Procedure>(
+      'procedures/' + id,
+      (record) => {
+        if (sequence !== detailSequence.current) return;
+        verified();
+        (selecting ? show : setSelected)(record);
+      },
+      () => {
+        if (sequence !== detailSequence.current) return;
+        verified();
+        setSelected((current) => (current?.id === id ? undefined : current));
+        setList((current) => current.filter((record) => record.id !== id));
+        if (selected?.id === id) {
+          setEditor((current) => (current?.editing ? undefined : current));
+          setDuplicating(false);
+          setDuplicateTitle('');
+        }
+      },
+    );
+  };
   async function refresh() {
     setLoading(true);
     setError('');
@@ -62,8 +85,13 @@ export function ProcedureLibrary() {
   }
   useEffect(() => {
     void refresh();
+    return () => {
+      ++detailSequence.current;
+    };
   }, []);
-  async function perform(action: () => Promise<void>) {
+  async function perform(action: () => Promise<void>, protectedId?: string) {
+    if (actionPending.current || (protectedId && unverified.has(protectedId))) return;
+    actionPending.current = true;
     setBusy(true);
     setError('');
     try {
@@ -71,7 +99,42 @@ export function ProcedureLibrary() {
     } catch (cause) {
       setError((cause as Error).message);
     } finally {
+      actionPending.current = false;
       setBusy(false);
+    }
+  }
+  async function mutate(resource: string, body: unknown, protectedId?: string) {
+    try {
+      return await request(resource, body);
+    } catch (cause) {
+      let message = (cause as Error).message;
+      if (protectedId && cause instanceof RequestError && cause.status === 403) {
+        message += await confirmReadAccess(protectedId);
+      }
+      throw new Error(message);
+    }
+  }
+  async function confirmReadAccess(id: string) {
+    setUnverified((current) => new Set(current).add(id));
+    try {
+      await readDetail(id);
+      return '';
+    } catch (cause) {
+      return ' Could not confirm access to the saved procedure: ' + (cause as Error).message;
+    }
+  }
+  async function refreshAfterSave(id: string) {
+    try {
+      await readList();
+    } catch (cause) {
+      const access =
+        cause instanceof RequestError && cause.status === 403 ? await confirmReadAccess(id) : '';
+      throw new Error(
+        'The procedure was saved, but the list could not be refreshed. ' +
+          (cause as Error).message +
+          access +
+          ' Do not repeat the save.',
+      );
     }
   }
   function show(record: Procedure) {
@@ -79,28 +142,46 @@ export function ProcedureLibrary() {
     setVersionNumber(record.versions.at(-1)!.number);
   }
   async function save(body: ProcedureBody, changeNote: string) {
-    await perform(async () => {
-      const record = editor?.editing
-        ? await request('procedures/' + editor.id + '/revisions', {
-            revision: editor.revision,
-            body,
-            changeNote,
-          })
-        : await request('procedures', body);
-      show(record);
-      setEditor(undefined);
-      await readList();
-    });
+    await perform(
+      async () => {
+        const record = editor?.editing
+          ? await mutate(
+              'procedures/' + editor.id + '/revisions',
+              {
+                revision: editor.revision,
+                body,
+                changeNote,
+              },
+              editor.id,
+            )
+          : await mutate('procedures', body, selected?.id);
+        show(record);
+        setEditor(undefined);
+        await refreshAfterSave(record.id);
+      },
+      editor?.editing ? editor.id : selected?.id,
+    );
   }
   async function importDefinition() {
     await perform(async () => {
       const parsed = parseProcedureImportText(importText);
-      const record = await request('procedures/import', parsed);
+      const record = await mutate('procedures/import', parsed, selected?.id);
       show(record);
       setImportText('');
       setImporting(false);
-      await readList();
-    });
+      await refreshAfterSave(record.id);
+    }, selected?.id);
+  }
+  async function recheck(id: string) {
+    setBusy(true);
+    setError('');
+    try {
+      await readDetail(id);
+    } catch (cause) {
+      setError((cause as Error).message);
+    } finally {
+      setBusy(false);
+    }
   }
   const visible = list.filter(
     (item) =>
@@ -142,6 +223,14 @@ export function ProcedureLibrary() {
         </button>
       </PageHeader>
       {error && !editor && !importing && !duplicating && <ErrorBox error={error} />}
+      {selectedUnverified && (
+        <div role="alert" className="error-box">
+          Procedure details and exports are hidden until current access is confirmed.
+          <button disabled={busy || loading} onClick={() => void recheck(selected!.id)}>
+            Read procedure again
+          </button>
+        </div>
+      )}
       <div className="procedure-layout">
         <section className="panel procedure-list" aria-label="Saved procedures">
           <label className="field">
@@ -191,7 +280,11 @@ export function ProcedureLibrary() {
           {!loading && !visible.length && <p>No matching procedures.</p>}
         </section>
         {selected && version ? (
-          <section className="panel procedure-detail">
+          <section
+            className="panel procedure-detail"
+            hidden={selectedUnverified}
+            style={selectedUnverified ? { display: 'none' } : undefined}
+          >
             <div className="section-heading">
               <div>
                 <h2>{version.body.title}</h2>
@@ -241,6 +334,7 @@ export function ProcedureLibrary() {
                 <Copy size={15} /> Duplicate
               </button>
               <button
+                disabled={selectedUnverified || busy}
                 onClick={() =>
                   download('waypoint-procedure-' + selected.id + '-v' + version.number + '.json', {
                     format: 'waypoint-procedure-1',
@@ -255,13 +349,17 @@ export function ProcedureLibrary() {
                 onClick={() =>
                   void perform(async () => {
                     show(
-                      await request('procedures/' + selected.id + '/archive', {
-                        revision: selected.revision,
-                        archived: !selected.archived,
-                      }),
+                      await mutate(
+                        'procedures/' + selected.id + '/archive',
+                        {
+                          revision: selected.revision,
+                          archived: !selected.archived,
+                        },
+                        selected.id,
+                      ),
                     );
-                    await readList();
-                  })
+                    await refreshAfterSave(selected.id);
+                  }, selected.id)
                 }
               >
                 <Archive size={15} /> {selected.archived ? 'Restore' : 'Archive'}
@@ -343,14 +441,18 @@ export function ProcedureLibrary() {
                 disabled={busy || selected.archived}
                 onClick={() =>
                   void perform(async () => {
-                    const run = await request('procedures/' + selected.id + '/run', {
-                      version: version.number,
-                    });
+                    const run = await mutate(
+                      'procedures/' + selected.id + '/run',
+                      {
+                        version: version.number,
+                      },
+                      selected.id,
+                    );
                     window.dispatchEvent(
                       new CustomEvent('waypoint-run-created', { detail: run.id }),
                     );
                     location.hash = 'runbooks';
-                  })
+                  }, selected.id)
                 }
               >
                 <Play size={16} /> Create run from version {version.number}
@@ -376,14 +478,25 @@ export function ProcedureLibrary() {
           }}
         >
           <div className="modal-body">
-            <ProcedureEditor
-              initial={editor.body}
-              editing={editor.editing}
-              busy={busy}
-              remoteError={error}
-              onSave={save}
-              onCancel={() => setEditor(undefined)}
-            />
+            {editorUnverified && (
+              <div role="alert" className="error-box">
+                The draft is hidden until current access is confirmed.
+                {error && <p>{error}</p>}
+                <button disabled={busy} onClick={() => void recheck(editor.id)}>
+                  Read procedure again
+                </button>
+              </div>
+            )}
+            <div hidden={editorUnverified}>
+              <ProcedureEditor
+                initial={editor.body}
+                editing={editor.editing}
+                busy={busy || editorUnverified}
+                remoteError={editorUnverified ? '' : error}
+                onSave={save}
+                onCancel={() => setEditor(undefined)}
+              />
+            </div>
           </div>
         </Modal>
       )}
@@ -439,7 +552,7 @@ export function ProcedureLibrary() {
           </footer>
         </Modal>
       )}
-      {duplicating && (
+      {duplicating && !selectedUnverified && (
         <Modal
           title="Duplicate this version"
           onClose={() => {
@@ -467,15 +580,18 @@ export function ProcedureLibrary() {
               disabled={busy || !duplicateTitle.trim()}
               onClick={() =>
                 void perform(async () => {
-                  show(
-                    await request('procedures/' + selected!.id + '/duplicate', {
+                  const record = await mutate(
+                    'procedures/' + selected!.id + '/duplicate',
+                    {
                       version: versionNumber,
                       title: duplicateTitle,
-                    }),
+                    },
+                    selected!.id,
                   );
+                  show(record);
                   setDuplicating(false);
-                  await readList();
-                })
+                  await refreshAfterSave(record.id);
+                }, selected!.id)
               }
             >
               Create independent copy

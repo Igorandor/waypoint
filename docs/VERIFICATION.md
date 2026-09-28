@@ -1,5 +1,11 @@
 # Verification record
 
+## Access recheck after refused changes — September 28, 2026
+
+Run and procedure mutations returning 403 previously left cached details and local exports available until manual refresh. The client now checks read access separately. GET200 retains drafts; GET403/404 removes the record; transient recheck failure hides evidence and exports until an explicit read succeeds. Handover and procedure editor drafts survive that temporary pause. Confirmed saves followed by list403 remain reported as saved, and new or duplicated procedures are checked using their returned ID. No mutation is replayed. This is client state handling, not a newly demonstrated backend authorization bypass.
+
+Build and 236 automated tests pass. Browser runs passed 19 new access checks, 15 dispatch recovery checks and 10 procedure ownership/editor checks using actual React components and synthetic transport. Separate production-style desktop and 390px checks verified the handover dialog disappearing during unavailable access and returning with its exact summary, plus a procedure editor retaining its name and change note after an internal retry. No IRIS requests or stored-data writes occurred. Draft persistence across reload/logout is not provided.
+
 ## Handover draft dismissal — September 28, 2026
 
 Reproduced loss of a typed handover summary after Cancel and reopening. Closing an edited handover now offers Keep editing or Discard draft. Failed saves retain the draft and error; an in-flight save blocks duplicate submission and dismissal. Unchanged or reverted drafts close directly. This applies to handover modal dismissal, not persistent drafts across reload/logout or other run forms.

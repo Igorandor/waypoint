@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Activity,
   ArrowUpRight,
@@ -17,10 +17,11 @@ import { Badge, ErrorBox, Loading, Modal, PageHeader } from '../components/ui';
 import { CreateRun } from '../features/runbooks/CreateRun';
 import { RunDetail } from '../features/runbooks/RunDetail';
 import { RunComparison } from '../features/runbooks/RunComparison';
-import { readProtected, refreshProtected } from '../protected-read';
+import { readProtected, readProtectedRecord, refreshProtected } from '../protected-read';
 
 export type RunActionResult =
-  { ok: true; warning?: string } | { ok: false; error: string; outcomeUnknown?: boolean };
+  | { ok: true; warning?: string; accessDenied?: boolean }
+  | { ok: false; error: string; outcomeUnknown?: boolean; accessDenied?: boolean };
 export type RunAction = (
   action: string,
   body?: Record<string, unknown>,
@@ -46,6 +47,7 @@ export async function performRunAction(
       ok: false,
       error: (cause as Error).message,
       outcomeUnknown,
+      accessDenied: cause instanceof RequestError && cause.status === 403,
     };
   }
   // The returned record confirms the action independently of the history list.
@@ -56,6 +58,7 @@ export async function performRunAction(
   } catch (cause) {
     return {
       ok: true,
+      accessDenied: cause instanceof RequestError && cause.status === 403,
       warning:
         'The action was saved, but the run list could not be refreshed. ' +
         (cause as Error).message +
@@ -79,16 +82,26 @@ export function Runbooks() {
     [from, setFrom] = useState(''),
     [to, setTo] = useState('');
   const [unresolvedRuns, setUnresolvedRuns] = useState<Set<string>>(() => new Set());
+  const [unverifiedRuns, setUnverifiedRuns] = useState<Set<string>>(() => new Set());
+  const detailSequence = useRef(0);
+  const actionPending = useRef(false);
   const readList = () =>
     readProtected<RunSummary[]>('runs', setRuns, () => {
       setRuns([]);
       setComparing(false);
     });
-  const readDetail = (id: string) =>
-    readProtected<Run>(
+  const readDetail = (id: string) => {
+    const sequence = ++detailSequence.current;
+    return readProtectedRecord<Run>(
       'runs/' + id,
       (received) => {
+        if (sequence !== detailSequence.current) return;
         setRun(received);
+        setUnverifiedRuns((current) => {
+          const remaining = new Set(current);
+          remaining.delete(id);
+          return remaining;
+        });
         setUnresolvedRuns((current) => {
           const remaining = new Set(current);
           remaining.delete(id);
@@ -96,11 +109,18 @@ export function Runbooks() {
         });
       },
       () => {
+        if (sequence !== detailSequence.current) return;
+        setUnverifiedRuns((current) => {
+          const remaining = new Set(current);
+          remaining.delete(id);
+          return remaining;
+        });
         setRun((current) => (current?.id === id ? undefined : current));
         setRuns((current) => current.filter((record) => record.id !== id));
         setComparing(false);
       },
     );
+  };
   async function refresh() {
     setError('');
     setLoading(true);
@@ -128,7 +148,10 @@ export function Runbooks() {
       void readList().catch((cause) => setError(cause.message));
     };
     window.addEventListener('waypoint-run-created', created);
-    return () => window.removeEventListener('waypoint-run-created', created);
+    return () => {
+      ++detailSequence.current;
+      window.removeEventListener('waypoint-run-created', created);
+    };
   }, []);
   async function select(id: string) {
     setBusy(true);
@@ -146,12 +169,27 @@ export function Runbooks() {
     body: Record<string, unknown> = {},
   ): Promise<RunActionResult> {
     if (!run) return { ok: false, error: 'Select a run before performing this action.' };
+    if (actionPending.current || unverifiedRuns.has(run.id))
+      return { ok: false, error: 'Read the current run before sending another action.' };
     if (unresolvedRuns.has(run.id))
       return { ok: false, error: 'Read the current run before sending another action.' };
+    actionPending.current = true;
     setBusy(true);
     setError('');
     try {
       const result = await performRunAction(run.id, action, body, setRun, setRuns);
+      if (result.accessDenied) {
+        setUnverifiedRuns((current) => new Set(current).add(run.id));
+        setComparing(false);
+        let error = result.ok ? (result.warning ?? '') : result.error;
+        try {
+          await readDetail(run.id);
+        } catch (cause) {
+          error += ' Could not confirm access to the saved run: ' + (cause as Error).message;
+        }
+        setError(error);
+        return result.ok ? { ...result, warning: error } : { ...result, error };
+      }
       if (!result.ok && result.outcomeUnknown) {
         const id = run.id;
         setUnresolvedRuns((current) => new Set(current).add(id));
@@ -177,6 +215,7 @@ export function Runbooks() {
       setError(result.ok ? (result.warning ?? '') : result.error);
       return result;
     } finally {
+      actionPending.current = false;
       setBusy(false);
     }
   }
@@ -194,7 +233,10 @@ export function Runbooks() {
         title="Run queue"
         description="Select a run to inspect its steps and recorded results."
       >
-        <button disabled={busy || runs.length < 2} onClick={() => setComparing(true)}>
+        <button
+          disabled={busy || unverifiedRuns.size > 0 || runs.length < 2}
+          onClick={() => setComparing(true)}
+        >
           Compare runs
         </button>
         <button disabled={loading || busy} onClick={() => void refresh()}>
@@ -220,6 +262,14 @@ export function Runbooks() {
         <span className="persist-note">History for this account</span>
       </div>
       {error && <ErrorBox error={error} />}
+      {run && unverifiedRuns.has(run.id) && (
+        <div role="alert" className="error-box">
+          Run details and exports are hidden until current access is confirmed.
+          <button disabled={busy || loading} onClick={() => void select(run.id)}>
+            Read run again
+          </button>
+        </div>
+      )}
       <div className="runs-workbench">
         <section className="panel runs-list" aria-label="Saved runs">
           <div className="section-heading">
@@ -310,6 +360,7 @@ export function Runbooks() {
             run={run}
             busy={busy || loading}
             outcomeUnknown={unresolvedRuns.has(run.id)}
+            accessPending={unverifiedRuns.has(run.id)}
             onAction={action}
           />
         ) : (

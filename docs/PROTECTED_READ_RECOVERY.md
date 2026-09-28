@@ -4,7 +4,7 @@ Command history, run history and the procedure library distinguish a forbidden r
 
 Refreshing a selected record rechecks the list and detail separately. Failure of the list does not skip the detail check. In command history this handles a filtered index followed by a refused receipt: the previously selected receipt no longer remains visible or exportable. Procedure refresh now also rechecks its selected definition.
 
-POST errors do not trigger this invalidation. A rejected handover, note, restoration or procedure edit does not establish that reading the previous record is forbidden. Existing drafts remain available. HTTP 401 continues through the existing session-ended flow; a refresh stops issuing further reads after that response.
+A 403 response to a run or procedure change now triggers a GET of that same record. A refused change alone does not prove that reading is forbidden. An allowed read restores the existing draft; a forbidden or missing record removes its detail and exports. If the recheck is temporarily unavailable, details, dialogs and exports are hidden until a successful explicit read, while the draft remains in memory. No change is automatically retried. A successful save followed by a refused list refresh is still reported as saved, and the returned record is rechecked. HTTP 401 continues through the existing session-ended flow.
 
 The shared `readProtected` helper always sends GET requests. Its callbacks are exercised with 403/500/401/404, filtered-index/denied-detail, independent list/detail outcomes, and session-ending cases. Existing action recovery tests also verify that a 403 mutation does not publish a replacement run or list. On 27 September 2026, `npm run check` passed both production bundles and **172 tests**.
 

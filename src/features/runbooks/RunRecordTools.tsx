@@ -35,11 +35,13 @@ export function RunRecordTools({
   run,
   busy,
   exportBlocked = false,
+  accessPending = false,
   onAction,
 }: {
   run: Run;
   busy: boolean;
   exportBlocked?: boolean;
+  accessPending?: boolean;
   onAction: RunAction;
 }) {
   const [editing, setEditing] = useState(false);
@@ -214,7 +216,7 @@ export function RunRecordTools({
           Append note
         </button>
       </details>
-      {editing && (
+      {editing && !accessPending && (
         <Modal
           key={confirmDiscard ? 'discard-handover' : 'edit-handover'}
           title={confirmDiscard ? 'Discard handover draft?' : 'Read-only handover package'}

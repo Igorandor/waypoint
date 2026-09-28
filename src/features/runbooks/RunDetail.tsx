@@ -12,18 +12,20 @@ export function RunDetail({
   run,
   busy,
   outcomeUnknown = false,
+  accessPending = false,
   onAction,
 }: {
   run: Run;
   busy: boolean;
   outcomeUnknown?: boolean;
+  accessPending?: boolean;
   onAction: RunAction;
 }) {
   const [note, setNote] = useState(''),
     [restore, setRestore] = useState(false),
     [confirmation, setConfirmation] = useState('');
   const [restoreError, setRestoreError] = useState('');
-  const blocked = busy || outcomeUnknown;
+  const blocked = busy || outcomeUnknown || accessPending;
   const [completedItems, setCompletedItems] = useState<string[]>([]);
   const index = nextStep(run),
     current = run.steps[index];
@@ -40,7 +42,11 @@ export function RunDetail({
         ? current.title
         : 'Run next step';
   return (
-    <section className="run-detail panel">
+    <section
+      className="run-detail panel"
+      hidden={accessPending}
+      style={accessPending ? { display: 'none' } : undefined}
+    >
       <div className="run-heading">
         <div>
           <span className="eyebrow">
@@ -50,7 +56,7 @@ export function RunDetail({
           <code>{run.target}</code>
         </div>
         <button
-          disabled={outcomeUnknown}
+          disabled={outcomeUnknown || accessPending}
           onClick={() => download('waypoint-run-' + run.id + '.json', run)}
         >
           <Download size={15} /> Export report
@@ -296,8 +302,14 @@ export function RunDetail({
           </div>
         ))}
       </details>
-      <RunRecordTools run={run} busy={busy} exportBlocked={outcomeUnknown} onAction={onAction} />
-      {restore && (
+      <RunRecordTools
+        run={run}
+        busy={busy}
+        exportBlocked={outcomeUnknown || accessPending}
+        accessPending={accessPending}
+        onAction={onAction}
+      />
+      {restore && !accessPending && (
         <Modal
           title="Restore the original state"
           subtitle={run.target}

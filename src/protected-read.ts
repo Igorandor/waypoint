@@ -18,6 +18,20 @@ export async function readProtected<T>(
   return value;
 }
 
+/** A missing saved record also invalidates its cached detail and exports. */
+export async function readProtectedRecord<T>(
+  resource: string,
+  received: (value: T) => void,
+  denied: () => void,
+): Promise<T> {
+  try {
+    return await readProtected(resource, received, denied);
+  } catch (cause) {
+    if (cause instanceof RequestError && cause.status === 404) denied();
+    throw cause;
+  }
+}
+
 /** A failed list read must not prevent rechecking the already selected record. */
 export async function refreshProtected(reads: Array<() => Promise<unknown>>): Promise<string> {
   const errors: string[] = [];

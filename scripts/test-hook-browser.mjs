@@ -7,25 +7,30 @@ const tasks = process.argv.includes('--tasks');
 const applications = process.argv.includes('--applications');
 const dispatch = process.argv.includes('--dispatch');
 const handover = process.argv.includes('--handover');
-const expected = handover ? 14 : dispatch ? 15 : applications ? 8 : 12;
-const label = handover
-  ? 'handover draft dismissal'
-  : dispatch
-    ? 'run dispatch recovery'
-    : applications
-      ? 'application inventory and dossier'
-      : tasks
-        ? 'task inventory and dossier'
-        : 'native observation hook';
-const entry = handover
-  ? 'handover-draft'
-  : dispatch
-    ? 'run-dispatch'
-    : applications
-      ? 'application-inventory'
-      : tasks
-        ? 'task-list'
-        : 'native-observation';
+const access = process.argv.includes('--access');
+const expected = access ? 19 : handover ? 14 : dispatch ? 15 : applications ? 8 : 12;
+const label = access
+  ? 'saved-record access recheck'
+  : handover
+    ? 'handover draft dismissal'
+    : dispatch
+      ? 'run dispatch recovery'
+      : applications
+        ? 'application inventory and dossier'
+        : tasks
+          ? 'task inventory and dossier'
+          : 'native observation hook';
+const entry = access
+  ? 'mutation-access'
+  : handover
+    ? 'handover-draft'
+    : dispatch
+      ? 'run-dispatch'
+      : applications
+        ? 'application-inventory'
+        : tasks
+          ? 'task-list'
+          : 'native-observation';
 const bundle = await build({
   entryPoints: [fileURLToPath(new URL(`../tests/browser/${entry}.jsx`, import.meta.url))],
   bundle: true,
