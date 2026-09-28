@@ -1,6 +1,12 @@
 # Video walkthrough
 
-## Current recording
+## Maintenance and restoration walkthrough
+
+The [maintenance MP4 walkthrough](https://github.com/Igorandor/waypoint/releases/download/v1.0.0/waypoint-walkthrough.mp4) runs 1:00 and shows a complete maintenance run: inspect a temporary application route, disable it, reload with its restoration obligation retained, record evidence, restore it and verify completion. Only the route created for this recording was changed. Its enabled state was restored and independently checked, then the temporary route was removed.
+
+The recording uses actual browser interactions, edited between takes, with CC0 music and no narration. The [release](https://github.com/Igorandor/waypoint/releases/tag/v1.0.0) includes English SRT captions and a transcript. This is a separate GitHub-hosted recording; the original read-only YouTube walkthrough below remains valid. The maintenance recording has not been uploaded to YouTube.
+
+## Original YouTube recording
 
 The Waypoint video now shows actual browser interactions: typing, navigation, changing results and saved workflow records. Duration: approximately 1:15. Instrumental CC0 music and short English captions remain; there is no narration.
 

@@ -6,6 +6,8 @@ Built for the [InterSystems Programming Contest: Build Your Own Management Porta
 
 ![Waypoint connected to a real IRIS Community instance](docs/images/overview.png)
 
+[Watch a maintenance and restoration run (MP4, 1:00)](https://github.com/Igorandor/waypoint/releases/download/v1.0.0/waypoint-walkthrough.mp4). The recording uses a temporary demonstration route and verifies that its original state is restored. [Release downloads](https://github.com/Igorandor/waypoint/releases/tag/v1.0.0) include the source package, English captions and transcript.
+
 ## Start with the Operations desk
 
 1. Choose **New run → Observe an instance** and review its four steps. **Create run** saves the plan without executing it.
