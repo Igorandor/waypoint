@@ -14,4 +14,4 @@ All observations retain a source and capture time. CPU counters are cumulative; 
 
 The independent ObjectScript/Embedded Python extension serves host observations and bounded messages/alerts windows. Its application uses password authentication and the operator's native privileges. Installation failures terminate the installation session with a failure status.
 
-The pinned API JSON and security/native probes retain their origin; the application foundation is independently implemented. See [PROVENANCE.md](PROVENANCE.md).
+See [source references](PROVENANCE.md) for the API specification and validation support.

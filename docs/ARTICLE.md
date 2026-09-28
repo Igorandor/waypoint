@@ -4,7 +4,7 @@ When you disable an application for maintenance, you need to remember its starti
 
 Waypoint records each step of an IRIS maintenance run, including observations, operator notes and unfinished restoration work. The Operations desk lists runs that need attention. This walkthrough begins with a read-only run before explaining the maintenance and handover workflows.
 
-The [repository](https://github.com/Igorandor/waypoint) includes the source, installation instructions and recovery documentation. Development used AI assistance; the implementation history and retained third-party references are described in [provenance](https://github.com/Igorandor/waypoint/blob/main/docs/PROVENANCE.md).
+The [repository](https://github.com/Igorandor/waypoint) includes the source, installation instructions and recovery documentation.
 
 ## Start with an observation run
 

@@ -4,4 +4,5 @@
 - InterSystems IRIS Community is distributed under InterSystems' terms. The Docker reference does not change those terms.
 - Lucide icons use the ISC license. React, Express, Vite and the remaining npm dependencies retain their respective licenses; exact resolved versions are recorded in `package-lock.json`.
 
-The current application foundation is independent. Earlier revisions reused Harbor; retained security and native integration probes preserve that provenance and the Harbor license notice. See [project provenance](docs/PROVENANCE.md). Attribution does not imply organizer approval.
+
+Copyright notices for retained test and support material are preserved in [LICENSE](LICENSE).

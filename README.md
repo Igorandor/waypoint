@@ -176,7 +176,7 @@ Node.js gateway (Express)
 - `shared/runbook.ts`: typed templates, states and summaries.
 - `server/run-engine.ts`: guarded transitions, reconciliation and restoration.
 - `server/run-store.ts`: account-scoped atomic JSON persistence.
-- `src/pages/Runbooks.tsx`: run queue; `src/commands`: independent command station and observations.
+- `src/pages/Runbooks.tsx`: run queue; `src/commands`: command station and observations.
 - `src/components`: product-specific evidence views and dialogs.
 - `shared/commands.ts`: runtime targets; `shared/command-draft.ts`: defaults and conflict checks; `shared/schema.ts`: contract access.
 - `shared/iris-openapi.json`: unchanged upstream specification; `iris-contract.json`: generated request-only projection.
@@ -184,15 +184,11 @@ Node.js gateway (Express)
 - `iris/Waypoint`: native extension, installer and harmless demo task.
 - `tests`: security boundaries and contract checks; `scripts`: reproducible live checks.
 
-There is no background AI service, analytics, paid API, cloud account requirement or simulated backend. See [architecture](docs/ARCHITECTURE.md) and [contest coverage](docs/CONTEST.md).
+See [architecture](docs/ARCHITECTURE.md) and [contest coverage](docs/CONTEST.md).
 
 ## License and attribution
 
 Original application code is MIT licensed. The InterSystems API specification is attributed separately in [THIRD_PARTY.md](THIRD_PARTY.md). InterSystems IRIS is a separately licensed product and is not covered by this repository's MIT license.
-
-## Independent project
-
-The earlier Harbor-derived application foundation has been replaced. Waypoint now owns its administration workflow, gateway/session implementation, presentation components and native extension. Official API references, conventional build scaffolding and retained regression/native probes have their provenance documented in [PROVENANCE.md](docs/PROVENANCE.md). No sibling checkout or service is required. Git history remains intact.
 
 See [data views and limits](docs/DATA_VIEWS.md).
 
@@ -209,5 +205,3 @@ Watch the [video walkthrough](https://www.youtube.com/watch?v=ZKfUzavGfEo). See 
 ## Author
 
 [Igor Podlewski on Developer Community](https://community.intersystems.com/user/igor-podlewski) · [GitHub](https://github.com/Igorandor)
-
-Development used AI assistance. See [provenance](docs/PROVENANCE.md) for implementation history and attribution.
