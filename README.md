@@ -6,15 +6,15 @@ Built for the [InterSystems Programming Contest: Build Your Own Management Porta
 
 ![Waypoint keeps the pending restoration visible after reopening a maintenance run](docs/images/overview.png)
 
-[Watch a maintenance and restoration run (MP4, 1:00)](https://github.com/Igorandor/waypoint/releases/download/v1.0.0/waypoint-walkthrough.mp4). The recording uses a temporary demonstration route and verifies that its original state is restored. [Release downloads](https://github.com/Igorandor/waypoint/releases/tag/v1.0.0) include the source package, English captions and transcript.
+[Watch a maintenance and restoration run (MP4, 1:00)](https://github.com/Igorandor/waypoint/releases/download/v1.0.0/waypoint-walkthrough.mp4). The recording uses a temporary demonstration route and verifies that its original state is restored. The [latest release](https://github.com/Igorandor/waypoint/releases/latest) provides the source package; [video downloads](https://github.com/Igorandor/waypoint/releases/tag/v1.0.0) include English captions and a transcript.
 
 [Watch the current walkthrough on YouTube](https://www.youtube.com/watch?v=ZKfUzavGfEo) (unlisted, available by link).
 
-## Start with the Operations desk
+## Start with an observation
 
 Follow [your first observation and handover](docs/FIRST_RUN.md) to collect evidence without changing IRIS, save a note and prepare a report for the next operator.
 
-1. Choose **New run → Observe an instance** and review its four steps. **Create run** saves the plan without executing it.
+1. Open **Runs** in the navigation (**Runbooks** in the tool finder), choose **New run → Observe an instance** and review its four steps. **Create run** saves the plan without executing it.
 2. Choose **Run next step** to capture each source. Select recorded steps and export the completed report.
 3. For a maintenance window, select an application or task and type its exact target. The first step records the original state.
 4. Run the next transition and inspect the read-back evidence. Complete the external maintenance work and record a note at the checkpoint.
