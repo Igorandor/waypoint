@@ -1,5 +1,13 @@
 # Verification record
 
+## Procedure import error locations — September 28, 2026
+
+Release 1.0.14 keeps JSON paths in procedure-import validation errors, including array positions and envelope-level errors. The parser retains the original explanation and existing strict validation. Invalid input stays in the dialog; supported IDs, references and false values survive validation without rewriting.
+
+Build and 243 tests pass. Eight actual-component browser checks cover nested checklist fields, repeated reference errors, unknown fields, unsupported format, semantic assertion errors, malformed JSON, inert markup in error messages, and a corrected definition followed by a refused save. Invalid definitions make no mutation request; the valid control uses a refusing synthetic transport. No IRIS or durable writes were made.
+
+Manual desktop and 390px checks confirm that nested field paths and two repeated reference errors remain readable, with retained input and available correction controls. Client/scroll widths are 1280/1280px and 390/390px. Responsive checks do not certify physical devices.
+
 ## Added and removed procedure definitions — September 28, 2026
 
 Release 1.0.13 includes the full present definition of each added or removed step in version comparison and its JSON export. Observations retain source and target; checklists retain nested items, note requirements and references; assertions retain their dependencies, checks and expected values. Definitions use a single value column with readable field labels. Existing-step changes keep their before/after comparison. Identity matching, counts, saved versions and execution are unchanged.

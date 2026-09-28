@@ -49,7 +49,19 @@ export function parseProcedureImportText(text: string) {
     throw new Error('Paste a valid Waypoint procedure JSON document.');
   }
   const parsed = procedureImportSchema.safeParse(value);
-  if (!parsed.success) throw new Error(parsed.error.issues.map((issue) => issue.message).join(' '));
+  if (!parsed.success)
+    throw new Error(
+      parsed.error.issues
+        .map((issue) => {
+          const path = issue.path.reduce<string>(
+            (current, part) =>
+              typeof part === 'number' ? `${current}[${part}]` : `${current}.${String(part)}`,
+            '$',
+          );
+          return `${path}: ${issue.message}`;
+        })
+        .join(' '),
+    );
   if (!procedureBodyFitsRequest(parsed.data.body))
     throw new Error('The procedure body exceeds the 256 KiB request limit after validation.');
   return parsed.data;

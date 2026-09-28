@@ -18,6 +18,12 @@ Save a readiness procedure from a dossier, or use Guided procedure in the librar
 
 When reviewing two saved versions, inspect the definitions of added and removed steps as well as changed fields. An observation's target, checklist requirements or an assertion's expected result can differ even when the titles match. Recreated steps remain additions and removals because comparison uses stored identifiers. Export the comparison to retain these details; existing runs continue using their selected version.
 
+## Import a procedure definition
+
+In Procedure library, choose **Import procedure** and paste a JSON definition exported by Waypoint. **Validate and import** creates a new procedure owned by your account; it does not replace an existing procedure or execute its steps.
+
+If validation fails, the pasted JSON stays in the dialog. Correct the reported field and try again. Paths identify the JSON location; numeric array positions start at zero, so `$.body.steps[17].items[0].text` means the first checklist item in the eighteenth step. Unsupported fields and unsafe references are rejected rather than silently removed.
+
 ## Recover a command result
 
 After an execution attempt, its command ID remains consumed in that view even if the response is lost. If Waypoint cannot confirm read access to the saved result, it hides the previous evidence and keeps the ID for recovery. **Retry receipt access** reads that ID without executing the command or repeating reconciliation. A successful read restores current evidence; it does not make the consumed review executable again.

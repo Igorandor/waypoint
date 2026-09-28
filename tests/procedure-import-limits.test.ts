@@ -359,3 +359,62 @@ test('actual import callback preserves pasted text and selection for rejected de
     assert.equal(busy, false);
   }
 });
+
+test('import validation identifies every nested JSON location without dropping the underlying message', () => {
+  const invalid = structuredClone(basic) as any;
+  invalid.steps = [
+    {
+      id: 'first',
+      kind: 'checklist',
+      title: 'First',
+      instruction: '',
+      items: [{ id: 'check', text: 42, required: false }],
+      requireNote: false,
+      reference: 'http://example.com/first',
+    },
+    {
+      id: 'second',
+      kind: 'checklist',
+      title: 'Second',
+      instruction: '',
+      items: [{ id: 'check', text: 'Review', required: false }],
+      requireNote: false,
+      reference: 'javascript:void(0)',
+    },
+  ];
+  assert.throws(
+    () => parseProcedureImportText(JSON.stringify(pack(invalid))),
+    (error: Error) => {
+      assert.match(
+        error.message,
+        /\$\.body\.steps\[0\]\.items\[0\]\.text: Invalid input: expected string, received number/,
+      );
+      assert.match(error.message, /\$\.body\.steps\[0\]\.reference: References must be HTTPS/);
+      assert.match(error.message, /\$\.body\.steps\[1\]\.reference: References must be HTTPS/);
+      return true;
+    },
+  );
+});
+
+test('import validation distinguishes envelope, body and nested unknown fields', () => {
+  for (const [value, path] of [
+    [{ ...pack(basic), owner: 'other' }, '$'],
+    [pack({ ...basic, command: 'unsupported' } as any), '$.body'],
+    [
+      pack({ ...basic, steps: [{ ...basic.steps[0], extra: 'unsupported' }] } as any),
+      '$.body.steps[0]',
+    ],
+  ] as const) {
+    assert.throws(
+      () => parseProcedureImportText(JSON.stringify(value)),
+      (error: Error) => {
+        assert.ok(error.message.startsWith(path + ': Unrecognized key:'));
+        return true;
+      },
+    );
+  }
+  assert.throws(
+    () => parseProcedureImportText('{broken'),
+    /Paste a valid Waypoint procedure JSON document/,
+  );
+});
