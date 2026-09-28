@@ -1,3 +1,17 @@
+.step-index .check-failed .step-index-number,
+.step-index .check-unknown .step-index-number {
+  color: #9a5500;
+}
+.step-index .check-failed small,
+.step-index .check-unknown small {
+  color: #9a5500;
+}
+[data-theme='dark'] .step-index .check-failed .step-index-number,
+[data-theme='dark'] .step-index .check-unknown .step-index-number,
+[data-theme='dark'] .step-index .check-failed small,
+[data-theme='dark'] .step-index .check-unknown small {
+  color: #f6c273;
+}
 .run-record-tools {
   border-top: 1px solid var(--line);
   padding: 20px 24px;

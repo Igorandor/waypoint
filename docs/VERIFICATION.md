@@ -1,5 +1,11 @@
 # Verification record
 
+## Recorded checks and first-run guidance — September 28, 2026
+
+The step list previously marked passed, failed and unknown assertions alike as Recorded. The list and selected-step badge now show their actual recorded outcome with a separate label and warning icon for failed or unknown results. Completed read-only runs with outstanding checks distinguish finished steps from passed checks. The shared outcome reader also supplies the existing aggregate counts; execution states, native actions and assertion evaluation are unchanged. Procedure checkpoint notes now ask for the decision and follow-up instead of readiness to restore a target. FIRST_RUN directs newcomers to Runs / Runbooks, where New run actually appears.
+
+Production build and 236 tests pass. Fourteen actual-component browser regressions cover mixed and passed-only results, failed native observations, required checklist items and notes, and unchanged maintenance wording. Desktop/light and dark plus 390px browser checks confirmed distinct labels, retained evidence, completion warning, and an explicit note/checklist action. These used the actual planner/evaluator and UI with synthetic observations; no IRIS or durable writes occurred.
+
 ## Access recheck after refused changes — September 28, 2026
 
 Run and procedure mutations returning 403 previously left cached details and local exports available until manual refresh. The client now checks read access separately. GET200 retains drafts; GET403/404 removes the record; transient recheck failure hides evidence and exports until an explicit read succeeds. Handover and procedure editor drafts survive that temporary pause. Confirmed saves followed by list403 remain reported as saved, and new or duplicated procedures are checked using their returned ID. No mutation is replayed. This is client state handling, not a newly demonstrated backend authorization bypass.

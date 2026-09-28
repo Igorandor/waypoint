@@ -1,8 +1,8 @@
 # Your first observation and handover
 
-Start with a saved observation. It reads IRIS without changing an application or task schedule. Follow the [installation steps](../README.md#quick-start-complete-local-installation), sign in with an account allowed to read the selected sources, and open **Operations desk**.
+Start with a saved observation. It reads IRIS without changing an application or task schedule. Follow the [installation steps](../README.md#quick-start-complete-local-installation), sign in with an account allowed to read the selected sources, and open **Runs** in the navigation (labelled **Runbooks** in the tool finder). The page heading is **Run queue**.
 
-![Operations desk with saved runs and outstanding work](images/operations-desk-desktop.png)
+The **Operations desk** summarizes saved work and follow-ups; use **Run queue** to create the first run.
 
 ## Capture an observation
 

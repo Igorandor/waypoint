@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Run, RunStep } from './runbook.js';
-import { referenceSchema } from './procedure.js';
+import { referenceSchema, type AssertionResult } from './procedure.js';
 
 export const followUpSchema = z
   .object({
@@ -46,12 +46,16 @@ export type RunNote = {
   text: string;
   category: 'observation' | 'decision' | 'follow-up';
 };
+export function recordedAssertionOutcome(step: RunStep): AssertionResult['outcome'] | undefined {
+  if (step.procedureStep?.kind !== 'assertion' || step.status !== 'done') return;
+  const outcome = (step.evidence as { outcome?: string } | undefined)?.outcome;
+  if (outcome === 'passed' || outcome === 'failed' || outcome === 'unknown') return outcome;
+}
 export function assertionCounts(run: Pick<Run, 'steps'>) {
   const results = { passed: 0, failed: 0, unknown: 0 };
   for (const step of run.steps) {
-    if (step.procedureStep?.kind !== 'assertion' || step.status !== 'done') continue;
-    const outcome = (step.evidence as { outcome?: string } | undefined)?.outcome;
-    if (outcome === 'passed' || outcome === 'failed' || outcome === 'unknown') results[outcome]++;
+    const outcome = recordedAssertionOutcome(step);
+    if (outcome) results[outcome]++;
   }
   return results;
 }

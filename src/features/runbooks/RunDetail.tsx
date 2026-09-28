@@ -1,12 +1,24 @@
 import { DataView } from '../../components/DataView';
 import { useEffect, useState } from 'react';
-import { ArrowRight, Check, Clock3, Download, RotateCcw, Square } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  Check,
+  CircleHelp,
+  Clock3,
+  Download,
+  RotateCcw,
+  Square,
+} from 'lucide-react';
 import { nextStep, writeStep, type Run } from '../../../shared/runbook';
+import { assertionCounts, recordedAssertionOutcome } from '../../../shared/run-records';
 import { download } from '../../api';
 import { Badge, ErrorBox, Modal } from '../../components/ui';
 import { RunRecordTools } from './RunRecordTools';
 import type { RunAction } from '../../pages/Runbooks';
 import './records.css';
+
+const checkLabels = { passed: 'Check passed', failed: 'Check failed', unknown: 'Result unknown' };
 
 export function RunDetail({
   run,
@@ -35,6 +47,12 @@ export function RunDetail({
     setCompletedItems([]);
   }, [index]);
   const inspected = run.steps[selectedStep];
+  const inspectedOutcome = recordedAssertionOutcome(inspected);
+  const checks = assertionCounts(run);
+  const completedWithFindings =
+    run.status === 'completed' &&
+    checks.failed + checks.unknown > 0 &&
+    !run.steps.some((step) => writeStep(step.kind));
   const label =
     current?.kind === 'checkpoint'
       ? 'Record note and continue'
@@ -70,9 +88,13 @@ export function RunDetail({
         </p>
       )}
       <div className="run-meta">
-        <Badge tone={run.status === 'completed' ? 'good' : 'neutral'}>
+        <Badge
+          tone={completedWithFindings ? 'warning' : run.status === 'completed' ? 'good' : 'neutral'}
+        >
           {run.status === 'completed'
-            ? 'Completed'
+            ? completedWithFindings
+              ? 'Completed · checks to review'
+              : 'Completed'
             : run.status === 'stopped'
               ? 'Stopped'
               : 'In progress'}
@@ -104,22 +126,39 @@ export function RunDetail({
       )}
       <div className="step-workbench">
         <nav className="step-index" aria-label="Run steps">
-          {run.steps.map((step, i) => (
-            <button
-              key={step.procedureStep?.id ?? step.kind}
-              aria-pressed={selectedStep === i}
-              onClick={() => setSelectedStep(i)}
-              className={'step-' + step.status}
-            >
-              <span className="step-index-number">
-                {step.status === 'done' ? <Check size={15} /> : i + 1}
-              </span>
-              <span>
-                <strong>{step.title}</strong>
-                <small>{step.status === 'done' ? 'Recorded' : step.status}</small>
-              </span>
-            </button>
-          ))}
+          {run.steps.map((step, i) => {
+            const outcome = recordedAssertionOutcome(step);
+            return (
+              <button
+                key={step.procedureStep?.id ?? step.kind}
+                aria-pressed={selectedStep === i}
+                onClick={() => setSelectedStep(i)}
+                className={'step-' + step.status + (outcome ? ' check-' + outcome : '')}
+              >
+                <span className="step-index-number">
+                  {outcome === 'failed' ? (
+                    <AlertTriangle size={15} />
+                  ) : outcome === 'unknown' ? (
+                    <CircleHelp size={15} />
+                  ) : step.status === 'done' ? (
+                    <Check size={15} />
+                  ) : (
+                    i + 1
+                  )}
+                </span>
+                <span>
+                  <strong>{step.title}</strong>
+                  <small>
+                    {outcome
+                      ? 'Recorded · ' + checkLabels[outcome]
+                      : step.status === 'done'
+                        ? 'Recorded'
+                        : step.status}
+                  </small>
+                </span>
+              </button>
+            );
+          })}
         </nav>
         <section className="step-inspector" aria-label="Selected step result" aria-live="polite">
           <div className="step-inspector-heading">
@@ -128,14 +167,16 @@ export function RunDetail({
             </span>
             <Badge
               tone={
-                inspected.status === 'done'
-                  ? 'good'
-                  : inspected.status === 'failed' || inspected.status === 'uncertain'
-                    ? 'warning'
-                    : 'neutral'
+                inspectedOutcome === 'failed' || inspectedOutcome === 'unknown'
+                  ? 'warning'
+                  : inspected.status === 'done'
+                    ? 'good'
+                    : inspected.status === 'failed' || inspected.status === 'uncertain'
+                      ? 'warning'
+                      : 'neutral'
               }
             >
-              {inspected.status}
+              {inspectedOutcome ? 'Recorded · ' + checkLabels[inspectedOutcome] : inspected.status}
             </Badge>
           </div>
           <h3>{inspected.title}</h3>
@@ -205,7 +246,11 @@ export function RunDetail({
                 value={note}
                 disabled={blocked}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="What was done, what was checked, and whether the target is ready to restore."
+                placeholder={
+                  current.procedureStep?.kind === 'checklist'
+                    ? 'Record your decision, unresolved findings and the next action.'
+                    : 'What was done, what was checked, and whether the target is ready to restore.'
+                }
               />
             </label>
           )}
@@ -280,9 +325,15 @@ export function RunDetail({
       )}
       {run.status !== 'active' && (
         <div className="run-closed">
-          <Check size={20} />
+          {completedWithFindings ? <AlertTriangle size={20} /> : <Check size={20} />}
           <div>
-            <strong>{run.status === 'completed' ? 'Run complete' : 'Run closed'}</strong>
+            <strong>
+              {completedWithFindings
+                ? 'Steps finished; checks may still need review'
+                : run.status === 'completed'
+                  ? 'Run complete'
+                  : 'Run closed'}
+            </strong>
             <p>
               {run.status === 'completed'
                 ? 'Select a step to inspect its result. Skipped steps remain marked in this report.'
