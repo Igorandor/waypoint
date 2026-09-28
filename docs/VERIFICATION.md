@@ -1,10 +1,12 @@
 # Verification record
 
-## Command history access and selection — September 28, 2026
+## Command history access and selection - September 28, 2026
 
 Release 1.0.11 rechecks saved-command access after refused or missing reconciliation, hides that record from result and filtered-index exports during the check, and provides an explicit GET-only recovery after temporary failure. Missing records are removed on GET 404 as well as 403. Older list or detail responses cannot replace a newer selection. Search, outcome and date filters remain unchanged. A failed list read still permits an independent selected-record read; temporary ordinary reads retain previously read evidence for that same record.
 
-## Refused command reconciliation — September 28, 2026
+The production build and 236 Node tests pass. Twenty-eight actual CommandHistory browser checks cover separate read authorization, GET-only recovery, filtered exports, missing records, delayed responses and focus. Desktop and 390px manual checks confirmed recovery by keyboard and retention of search, outcome and date filters. History controls stay inside the desktop index; the named Reviewed command fields region can be scrolled by keyboard to its final columns at phone width. Checks used synthetic records with no native or durable writes. Responsive checks do not certify physical devices.
+
+## Refused command reconciliation - September 28, 2026
 
 Release 1.0.10 checks saved-record access after Operations desk reconciliation returns 403 or 404. The record is hidden from the desk and its export while this separate GET is pending. A readable result restores current evidence; a denied or missing record is removed. A transient access-check failure retains only an opaque recovery ID and offers Retry record access. The retry sends a GET, never the original mutation or another reconciliation. Other readable records remain available, and delayed responses cannot replace a later selection or restore data after a newer source denial.
 
