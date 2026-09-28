@@ -28,6 +28,7 @@ export type RunStep = {
   startedAt?: string;
   finishedAt?: string;
   evidence?: unknown;
+  collection?: { requestedRowLimit: number };
   error?: string;
   note?: string;
   procedureStep?: ProcedureStep;

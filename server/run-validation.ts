@@ -44,6 +44,10 @@ const step = z.object({
   startedAt: timestamp.optional(),
   finishedAt: timestamp.optional(),
   evidence: z.unknown().optional(),
+  collection: z
+    .object({ requestedRowLimit: z.number().int().positive().max(1000) })
+    .strict()
+    .optional(),
   error: z.string().optional(),
   note: z.string().optional(),
   procedureStep: storedProcedureStep.optional(),

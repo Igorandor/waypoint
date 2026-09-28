@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { nextStep, writeStep, type Run } from '../../../shared/runbook';
 import { assertionCounts, recordedAssertionOutcome } from '../../../shared/run-records';
+import { collectionLimitNotice } from '../../../shared/collection-limits';
 import { download } from '../../api';
 import { Badge, ErrorBox, Modal } from '../../components/ui';
 import { RunRecordTools } from './RunRecordTools';
@@ -47,6 +48,7 @@ export function RunDetail({
     setCompletedItems([]);
   }, [index]);
   const inspected = run.steps[selectedStep];
+  const collectionNotice = collectionLimitNotice(inspected);
   const inspectedOutcome = recordedAssertionOutcome(inspected);
   const checks = assertionCounts(run);
   const completedWithFindings =
@@ -189,6 +191,7 @@ export function RunDetail({
           {inspected.finishedAt && <time>{new Date(inspected.finishedAt).toLocaleString()}</time>}
           {inspected.error && <ErrorBox error={inspected.error} />}
           {inspected.note && <blockquote>{inspected.note}</blockquote>}
+          {collectionNotice && <p className="collection-limit-notice">{collectionNotice}</p>}
           {inspected.evidence !== undefined ? (
             <DataView key={inspected.kind} data={inspected.evidence} kind={inspected.kind} />
           ) : (

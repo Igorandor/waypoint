@@ -1,5 +1,13 @@
 # Verification record
 
+## Recorded collection limits — September 29, 2026
+
+Successful bounded inventory and task-history reads now retain optional collection metadata from their exact request parameters. The evidence payload is unchanged. Run JSON and handover JSON preserve it; RunDetail and printable HTML display it. Legacy bounded observations remain readable and explicitly lack a recorded limit in those views. Failed and pending reads do not claim a collected result. Log responses retain their existing source bounds. A requested limit does not establish actual truncation or completeness.
+
+Build and 251 tests pass. Four memory-only engine/validation regressions cover all five bounded procedure sources, ordinary inventory requests, unchanged log handling and evidence arrays, failed retry cleanup, legacy records and invalid metadata. Eight actual-component browser checks verify selected results and generated run JSON, handover JSON and HTML, including 100-row inventory and 50-row history requests, old records, failure and pending states. Run `node scripts/test-collection-limits-browser.mjs` and open its printed URL.
+
+Manual desktop and 390px checks confirm current and legacy notices, an explicit failed-read error, and a readable limit beside the evidence in generated HTML. Page widths match at1280px and390px; the report's inner frame matches at343px. These are synthetic responses with no native calls or writes to existing runs. Generated Blob inspection does not certify browser file-save completion or physical printing. Raw Export results remains response-only; full run exports retain context.
+
 ## Recovering procedure-run creation — September 28, 2026
 
 Release 1.0.16 blocks an immediate repeat after an unconfirmed procedure-run creation. The guard belongs to the selected procedure and immutable version. It covers lost transport, malformed successful responses and server failures; definite refusals remain retryable. Explicit recovery reads up to ten recent saved-run summaries without claiming an automatic match. Successful or empty history does not clear the guard until the operator acknowledges checking records. Failed history reads clear cached summaries and display the reason beside the recovery control. Leaving the tool clears history evidence while retaining uncertainty, and late reads cannot restore it. Run details identify the saved procedure ID and version.

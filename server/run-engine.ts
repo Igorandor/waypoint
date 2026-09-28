@@ -186,7 +186,17 @@ export class RunEngine {
       return run;
     });
   }
-  private async procedureObservation(actor: Actor, source: string, target: string) {
+  private async boundedObservation(
+    actor: Actor,
+    step: RunStep,
+    path: string,
+    query: Record<string, string>,
+  ) {
+    const data = await this.call(actor, path, query);
+    step.collection = { requestedRowLimit: Number(query.maxRows) };
+    return data;
+  }
+  private async procedureObservation(actor: Actor, step: RunStep, source: string, target: string) {
     switch (source) {
       case 'identity': {
         const info = await this.call(actor, '/info');
@@ -204,13 +214,13 @@ export class RunEngine {
       case 'alerts':
         return this.call(actor, '/extension/logs', { source, limit: '100' });
       case 'applications':
-        return this.call(actor, '/v2/web-apps', { maxRows: '100' });
+        return this.boundedObservation(actor, step, '/v2/web-apps', { maxRows: '100' });
       case 'tasks':
-        return this.call(actor, '/v2/tasks', { maxRows: '100' });
+        return this.boundedObservation(actor, step, '/v2/tasks', { maxRows: '100' });
       case 'processes':
-        return this.call(actor, '/v2/processes', { maxRows: '100' });
+        return this.boundedObservation(actor, step, '/v2/processes', { maxRows: '100' });
       case 'journals':
-        return this.call(actor, '/v2/journal/files', { maxRows: '100' });
+        return this.boundedObservation(actor, step, '/v2/journal/files', { maxRows: '100' });
       case 'application':
         return this.call(actor, '/v2/web-app', { name: target });
       case 'task':
@@ -218,7 +228,10 @@ export class RunEngine {
       case 'task-state':
         return this.call(actor, '/v2/task/info', { id: target });
       case 'task-history':
-        return this.call(actor, '/v2/task/history', { taskId: target, maxRows: '50' });
+        return this.boundedObservation(actor, step, '/v2/task/history', {
+          taskId: target,
+          maxRows: '50',
+        });
       default:
         throw new ApiError(400, 'Unknown procedure observation source.');
     }
@@ -286,6 +299,7 @@ export class RunEngine {
     step.startedAt = new Date().toISOString();
     step.attempts++;
     delete step.error;
+    delete step.collection;
     this.event(run, 'started', step.title);
     await this.store.save(run);
     let writeAttempted = false;
@@ -293,7 +307,12 @@ export class RunEngine {
       let evidence: unknown;
       if (definition) {
         if (definition.kind === 'observation')
-          evidence = await this.procedureObservation(actor, definition.source, definition.target);
+          evidence = await this.procedureObservation(
+            actor,
+            step,
+            definition.source,
+            definition.target,
+          );
         else if (definition.kind === 'assertion') {
           evidence = evaluateAssertion(
             definition,
@@ -379,16 +398,22 @@ export class RunEngine {
             evidence = await this.call(actor, '/v2/monitor/dashboard/main');
             break;
           case 'processes':
-            evidence = await this.call(actor, '/v2/processes', { maxRows: '100' });
+            evidence = await this.boundedObservation(actor, step, '/v2/processes', {
+              maxRows: '100',
+            });
             break;
           case 'task-inventory':
-            evidence = await this.call(actor, '/v2/tasks', { maxRows: '100' });
+            evidence = await this.boundedObservation(actor, step, '/v2/tasks', { maxRows: '100' });
             break;
           case 'application-inventory':
-            evidence = await this.call(actor, '/v2/web-apps', { maxRows: '100' });
+            evidence = await this.boundedObservation(actor, step, '/v2/web-apps', {
+              maxRows: '100',
+            });
             break;
           case 'journal-inventory':
-            evidence = await this.call(actor, '/v2/journal/files', { maxRows: '100' });
+            evidence = await this.boundedObservation(actor, step, '/v2/journal/files', {
+              maxRows: '100',
+            });
             break;
           case 'host':
             evidence = await this.call(actor, '/extension/telemetry');
@@ -400,7 +425,7 @@ export class RunEngine {
             });
             break;
           case 'task-history':
-            evidence = await this.call(actor, '/v2/task/history', {
+            evidence = await this.boundedObservation(actor, step, '/v2/task/history', {
               taskId: run.target,
               maxRows: '50',
             });
