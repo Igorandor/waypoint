@@ -6,21 +6,26 @@ const origin = 'http://127.0.0.1:3430';
 const tasks = process.argv.includes('--tasks');
 const applications = process.argv.includes('--applications');
 const dispatch = process.argv.includes('--dispatch');
-const expected = dispatch ? 15 : applications ? 8 : 12;
-const label = dispatch
-  ? 'run dispatch recovery'
-  : applications
-    ? 'application inventory and dossier'
-    : tasks
-      ? 'task inventory and dossier'
-      : 'native observation hook';
-const entry = dispatch
-  ? 'run-dispatch'
-  : applications
-    ? 'application-inventory'
-    : tasks
-      ? 'task-list'
-      : 'native-observation';
+const handover = process.argv.includes('--handover');
+const expected = handover ? 14 : dispatch ? 15 : applications ? 8 : 12;
+const label = handover
+  ? 'handover draft dismissal'
+  : dispatch
+    ? 'run dispatch recovery'
+    : applications
+      ? 'application inventory and dossier'
+      : tasks
+        ? 'task inventory and dossier'
+        : 'native observation hook';
+const entry = handover
+  ? 'handover-draft'
+  : dispatch
+    ? 'run-dispatch'
+    : applications
+      ? 'application-inventory'
+      : tasks
+        ? 'task-list'
+        : 'native-observation';
 const bundle = await build({
   entryPoints: [fileURLToPath(new URL(`../tests/browser/${entry}.jsx`, import.meta.url))],
   bundle: true,

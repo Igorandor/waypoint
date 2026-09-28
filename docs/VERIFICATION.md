@@ -1,5 +1,13 @@
 # Verification record
 
+## Handover draft dismissal — September 28, 2026
+
+Reproduced loss of a typed handover summary after Cancel and reopening. Closing an edited handover now offers Keep editing or Discard draft. Failed saves retain the draft and error; an in-flight save blocks duplicate submission and dismissal. Unchanged or reverted drafts close directly. This applies to handover modal dismissal, not persistent drafts across reload/logout or other run forms.
+
+Build and 236 automated tests pass. Run `node scripts/test-hook-browser.mjs --handover` and open its loopback URL for 14 real-component browser regressions, including summary/follow-up retention, busy and failed saves, original revision, saved handover edits and explicit discard. All 14 passed with a synthetic callback and no native requests.
+
+Separate desktop and 390px checks used the real component and production styles. Actual repeated Escape initially exposed a native dialog closing while React retained the draft; remounting the local dialog on confirmation transitions fixed it without changing the shared Modal. Repeated Escape now returns to an open editor with exact summary and follow-up text. Refused saves keep the draft. The 356px confirmation fits the 390px document. These are browser-responsive tests, not physical-phone tests; no existing run or IRIS data was changed.
+
 ## Refused saved-data reads — September 27, 2026
 
 Command history, runs and procedures now remove the specific cached resource after a forbidden GET, including its export. Temporary failures retain previous data, and rejected writes retain drafts. List and selected-detail refreshes are checked independently. Four new focused regressions pass; the full `npm run check` passes both production bundles and **172 tests**. See [behavior and isolated UI scenarios](PROTECTED_READ_RECOVERY.md). No native changes were needed; browser evidence belongs to the integration checkpoint.

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Archive, Download, MessageSquare, Plus, Send, Trash2 } from 'lucide-react';
 import type { Run } from '../../../shared/runbook';
 import {
@@ -46,38 +46,59 @@ export function RunRecordTools({
   const [draft, setDraft] = useState<HandoverInput>(emptyHandover);
   const [revision, setRevision] = useState(0);
   const [error, setError] = useState('');
-  const blocked = busy || exportBlocked;
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const initialDraft = useRef('');
+  const blocked = busy || exportBlocked || saving;
   const [note, setNote] = useState('');
   const [category, setCategory] = useState<'observation' | 'decision' | 'follow-up'>('observation');
   const checks = assertionCounts(run);
   const archive = canArchive(run);
   function edit() {
-    setDraft(
-      run.handover
-        ? {
-            recipient: run.handover.recipient,
-            summary: run.handover.summary,
-            outstandingRisks: run.handover.outstandingRisks,
-            nextActions: structuredClone(run.handover.nextActions),
-            references: [...run.handover.references],
-            delivered: run.handover.delivered,
-          }
-        : emptyHandover(),
-    );
+    const value = run.handover
+      ? {
+          recipient: run.handover.recipient,
+          summary: run.handover.summary,
+          outstandingRisks: run.handover.outstandingRisks,
+          nextActions: structuredClone(run.handover.nextActions),
+          references: [...run.handover.references],
+          delivered: run.handover.delivered,
+        }
+      : emptyHandover();
+    setDraft(value);
+    initialDraft.current = JSON.stringify(value);
+    setConfirmDiscard(false);
     setRevision(run.revision ?? 0);
     setError('');
     setEditing(true);
   }
+  function closeEditor() {
+    if (busy || savingRef.current) return;
+    if (confirmDiscard) setConfirmDiscard(false);
+    else if (JSON.stringify(draft) !== initialDraft.current) setConfirmDiscard(true);
+    else setEditing(false);
+  }
   async function save() {
+    if (blocked || savingRef.current) return;
     const result = handoverInputSchema.safeParse(draft);
     if (!result.success) {
       setError(result.error.issues.map((issue) => issue.message).join(' '));
       return;
     }
     setError('');
-    const saved = await onAction('handover', { revision, handover: result.data });
-    if (saved.ok) setEditing(false);
-    else setError(saved.error);
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      const saved = await onAction('handover', { revision, handover: result.data });
+      if (saved.ok) setEditing(false);
+      else setError(saved.error);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Could not save handover details.');
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
   }
   return (
     <section className="run-record-tools">
@@ -195,90 +216,180 @@ export function RunRecordTools({
       </details>
       {editing && (
         <Modal
-          title="Read-only handover package"
-          onClose={() => {
-            if (!busy) setEditing(false);
-          }}
+          key={confirmDiscard ? 'discard-handover' : 'edit-handover'}
+          title={confirmDiscard ? 'Discard handover draft?' : 'Read-only handover package'}
+          onClose={closeEditor}
         >
-          <div className="modal-body handover-editor">
-            <p>
-              The package shares the recorded results. It does not grant another account permission
-              to execute or restore this run.
-            </p>
-            {run.needsRestore && (
-              <div className="restoration-banner">
-                Restoration is still pending. {run.owner} must restore and verify the target in
-                Waypoint.
+          {confirmDiscard ? (
+            <>
+              <div className="modal-body">
+                <p>
+                  Your handover changes have not been saved. Keep editing or discard this draft.
+                </p>
               </div>
-            )}
-            <label className="field">
-              Intended recipient
-              <input
-                maxLength={128}
-                disabled={blocked}
-                value={draft.recipient}
-                onChange={(event) => setDraft({ ...draft, recipient: event.target.value })}
-              />
-            </label>
-            <label className="field">
-              Summary
-              <textarea
-                rows={4}
-                maxLength={2000}
-                disabled={blocked}
-                value={draft.summary}
-                onChange={(event) => setDraft({ ...draft, summary: event.target.value })}
-              />
-            </label>
-            <label className="field">
-              Outstanding risks
-              <textarea
-                rows={3}
-                maxLength={2000}
-                disabled={blocked}
-                value={draft.outstandingRisks}
-                onChange={(event) => setDraft({ ...draft, outstandingRisks: event.target.value })}
-              />
-            </label>
-            <h3>Follow-up actions</h3>
-            {draft.nextActions.map((item, index) => (
-              <div className="handover-action" key={item.id}>
+              <footer>
+                <button
+                  autoFocus
+                  disabled={busy || saving}
+                  onClick={() => setConfirmDiscard(false)}
+                >
+                  Keep editing
+                </button>
+                <button
+                  disabled={busy || saving}
+                  onClick={() => {
+                    if (busy || savingRef.current) return;
+                    setConfirmDiscard(false);
+                    setEditing(false);
+                  }}
+                >
+                  Discard draft
+                </button>
+              </footer>
+            </>
+          ) : (
+            <>
+              <div className="modal-body handover-editor">
+                <p>
+                  The package shares the recorded results. It does not grant another account
+                  permission to execute or restore this run.
+                </p>
+                {run.needsRestore && (
+                  <div className="restoration-banner">
+                    Restoration is still pending. {run.owner} must restore and verify the target in
+                    Waypoint.
+                  </div>
+                )}
                 <label className="field">
-                  Action
+                  Intended recipient
                   <input
-                    required
-                    maxLength={200}
+                    maxLength={128}
                     disabled={blocked}
-                    value={item.title}
-                    onChange={(event) =>
-                      setDraft({
-                        ...draft,
-                        nextActions: draft.nextActions.map((action, offset) =>
-                          offset === index ? { ...action, title: event.target.value } : action,
-                        ),
-                      })
-                    }
+                    value={draft.recipient}
+                    onChange={(event) => setDraft({ ...draft, recipient: event.target.value })}
                   />
                 </label>
                 <label className="field">
-                  Due (UTC)
-                  <input
-                    type="datetime-local"
+                  Summary
+                  <textarea
+                    rows={4}
+                    maxLength={2000}
                     disabled={blocked}
-                    value={item.dueAt.slice(0, 16)}
+                    value={draft.summary}
+                    onChange={(event) => setDraft({ ...draft, summary: event.target.value })}
+                  />
+                </label>
+                <label className="field">
+                  Outstanding risks
+                  <textarea
+                    rows={3}
+                    maxLength={2000}
+                    disabled={blocked}
+                    value={draft.outstandingRisks}
+                    onChange={(event) =>
+                      setDraft({ ...draft, outstandingRisks: event.target.value })
+                    }
+                  />
+                </label>
+                <h3>Follow-up actions</h3>
+                {draft.nextActions.map((item, index) => (
+                  <div className="handover-action" key={item.id}>
+                    <label className="field">
+                      Action
+                      <input
+                        required
+                        maxLength={200}
+                        disabled={blocked}
+                        value={item.title}
+                        onChange={(event) =>
+                          setDraft({
+                            ...draft,
+                            nextActions: draft.nextActions.map((action, offset) =>
+                              offset === index ? { ...action, title: event.target.value } : action,
+                            ),
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="field">
+                      Due (UTC)
+                      <input
+                        type="datetime-local"
+                        disabled={blocked}
+                        value={item.dueAt.slice(0, 16)}
+                        onChange={(event) =>
+                          setDraft({
+                            ...draft,
+                            nextActions: draft.nextActions.map((action, offset) =>
+                              offset === index
+                                ? {
+                                    ...action,
+                                    dueAt: event.target.value
+                                      ? new Date(event.target.value + 'Z').toISOString()
+                                      : '',
+                                  }
+                                : action,
+                            ),
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="check-option">
+                      <input
+                        type="checkbox"
+                        disabled={blocked}
+                        checked={item.completed}
+                        onChange={(event) =>
+                          setDraft({
+                            ...draft,
+                            nextActions: draft.nextActions.map((action, offset) =>
+                              offset === index
+                                ? { ...action, completed: event.target.checked }
+                                : action,
+                            ),
+                          })
+                        }
+                      />{' '}
+                      Completed
+                    </label>
+                    <button
+                      disabled={blocked}
+                      aria-label={`Remove follow-up ${index + 1}`}
+                      onClick={() =>
+                        setDraft({
+                          ...draft,
+                          nextActions: draft.nextActions.filter((_, offset) => offset !== index),
+                        })
+                      }
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  disabled={blocked || draft.nextActions.length >= 20}
+                  onClick={() =>
+                    setDraft({
+                      ...draft,
+                      nextActions: [
+                        ...draft.nextActions,
+                        { id: crypto.randomUUID(), title: '', completed: false, dueAt: '' },
+                      ],
+                    })
+                  }
+                >
+                  <Plus size={15} /> Add follow-up
+                </button>
+                <label className="field">
+                  HTTPS references, one per line
+                  <textarea
+                    rows={3}
+                    value={draft.references.join('\n')}
+                    disabled={blocked}
                     onChange={(event) =>
                       setDraft({
                         ...draft,
-                        nextActions: draft.nextActions.map((action, offset) =>
-                          offset === index
-                            ? {
-                                ...action,
-                                dueAt: event.target.value
-                                  ? new Date(event.target.value + 'Z').toISOString()
-                                  : '',
-                              }
-                            : action,
-                        ),
+                        references: event.target.value.split('\n').filter(Boolean),
                       })
                     }
                   />
@@ -287,85 +398,30 @@ export function RunRecordTools({
                   <input
                     type="checkbox"
                     disabled={blocked}
-                    checked={item.completed}
-                    onChange={(event) =>
-                      setDraft({
-                        ...draft,
-                        nextActions: draft.nextActions.map((action, offset) =>
-                          offset === index
-                            ? { ...action, completed: event.target.checked }
-                            : action,
-                        ),
-                      })
-                    }
+                    checked={draft.delivered}
+                    onChange={(event) => setDraft({ ...draft, delivered: event.target.checked })}
                   />{' '}
-                  Completed
+                  I have delivered this package to the intended recipient
                 </label>
-                <button
-                  disabled={blocked}
-                  aria-label={`Remove follow-up ${index + 1}`}
-                  onClick={() =>
-                    setDraft({
-                      ...draft,
-                      nextActions: draft.nextActions.filter((_, offset) => offset !== index),
-                    })
-                  }
-                >
-                  <Trash2 size={15} />
-                </button>
+                <small>
+                  Waypoint records your statement; it does not send a message or confirm receipt.
+                </small>
+                {error && <ErrorBox error={error} />}
               </div>
-            ))}
-            <button
-              disabled={blocked || draft.nextActions.length >= 20}
-              onClick={() =>
-                setDraft({
-                  ...draft,
-                  nextActions: [
-                    ...draft.nextActions,
-                    { id: crypto.randomUUID(), title: '', completed: false, dueAt: '' },
-                  ],
-                })
-              }
-            >
-              <Plus size={15} /> Add follow-up
-            </button>
-            <label className="field">
-              HTTPS references, one per line
-              <textarea
-                rows={3}
-                value={draft.references.join('\n')}
-                disabled={blocked}
-                onChange={(event) =>
-                  setDraft({ ...draft, references: event.target.value.split('\n').filter(Boolean) })
-                }
-              />
-            </label>
-            <label className="check-option">
-              <input
-                type="checkbox"
-                disabled={blocked}
-                checked={draft.delivered}
-                onChange={(event) => setDraft({ ...draft, delivered: event.target.checked })}
-              />{' '}
-              I have delivered this package to the intended recipient
-            </label>
-            <small>
-              Waypoint records your statement; it does not send a message or confirm receipt.
-            </small>
-            {error && <ErrorBox error={error} />}
-          </div>
-          <footer>
-            <button disabled={busy} onClick={() => setEditing(false)}>
-              Cancel
-            </button>
-            <button
-              className="primary"
-              disabled={blocked || !draft.summary.trim()}
-              onClick={() => void save()}
-            >
-              Save handover details
-            </button>
-          </footer>
+              <footer>
+                <button disabled={busy || saving} onClick={closeEditor}>
+                  Cancel
+                </button>
+                <button
+                  className="primary"
+                  disabled={blocked || !draft.summary.trim()}
+                  onClick={() => void save()}
+                >
+                  Save handover details
+                </button>
+              </footer>
+            </>
+          )}
         </Modal>
       )}
     </section>

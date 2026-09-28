@@ -17,6 +17,8 @@ Start with a saved observation. It reads IRIS without changing an application or
 
 Select **Prepare handover** in the run. Enter an intended recipient, a short summary and any outstanding risks. Use **Add follow-up** for a concrete next action; its optional deadline is labelled **Due (UTC)**. Select **Save handover details**, then download **Printable report** or **JSON package**.
 
+If you close an edited handover, choose **Keep editing** to retain the draft or **Discard draft** to remove your unsaved changes. Escape from that confirmation returns to the editor. A refused save leaves your text available to review. Drafts are not saved across browser reloads or logout.
+
 Send that file through your normal team channel. Mark delivery only after you have done so: Waypoint records your statement but does not send a message or confirm receipt. The package includes recorded evidence and unresolved work; it does not give another account permission to execute this run. Run history remains scoped to its owner and configured instance.
 
 ## Optional: try a maintenance window
