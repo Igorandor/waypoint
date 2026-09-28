@@ -4,7 +4,7 @@ Waypoint guides maintenance procedures in InterSystems IRIS. Run observations on
 
 Built for the [InterSystems Programming Contest: Build Your Own Management Portal](https://community.intersystems.com/post/intersystems-programming-contest-build-your-own-management-portal).
 
-![Waypoint connected to a real IRIS Community instance](docs/images/overview.png)
+![Waypoint keeps the pending restoration visible after reopening a maintenance run](docs/images/overview.png)
 
 [Watch a maintenance and restoration run (MP4, 1:00)](https://github.com/Igorandor/waypoint/releases/download/v1.0.0/waypoint-walkthrough.mp4). The recording uses a temporary demonstration route and verifies that its original state is restored. [Release downloads](https://github.com/Igorandor/waypoint/releases/tag/v1.0.0) include the source package, English captions and transcript.
 
