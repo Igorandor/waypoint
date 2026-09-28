@@ -1,5 +1,11 @@
 # Verification record
 
+## Consumed command receipt recovery - September 28, 2026
+
+Release 1.0.12 hides previously downloaded command evidence while checking receipt access after an execution failure or refused/missing reconciliation. Both task actions and the Command station retain the consumed ID and offer a GET-only retry. A restored historical review cannot reopen execution; it is labelled Execution outcome unconfirmed. Pre-dispatch conflicts retain the unsent draft. Synchronous in-flight guards and workspace tickets prevent duplicate dispatch and late updates after closing a workspace.
+
+Production build and 236 Node tests pass. Forty-one actual-component browser checks cover both surfaces, reconciliation403/404, receipt GET200/403/404/503, pending reads, mismatched IDs, restored reviewed status, focus, closed workspaces and pre-dispatch conflicts. Manual desktop and 390px checks confirmed visible recovery, natural Tab navigation to Retry receipt access, restored evidence without Execute once and readable result labels. Both phone views measured390px client/scroll width. Synthetic transport only, no native or durable writes; responsive checks do not certify physical devices. Existing server authorization remains in place, and files exported earlier cannot be revoked.
+
 ## Command history access and selection - September 28, 2026
 
 Release 1.0.11 rechecks saved-command access after refused or missing reconciliation, hides that record from result and filtered-index exports during the check, and provides an explicit GET-only recovery after temporary failure. Missing records are removed on GET 404 as well as 403. Older list or detail responses cannot replace a newer selection. Search, outcome and date filters remain unchanged. A failed list read still permits an independent selected-record read; temporary ordinary reads retain previously read evidence for that same record.

@@ -108,7 +108,8 @@
 .reviewed-action details {
   margin: 12px 0;
 }
-.reviewed-action > a {
+.reviewed-action > a,
+.reviewed-action-result > a {
   display: inline-block;
   margin: 12px;
 }

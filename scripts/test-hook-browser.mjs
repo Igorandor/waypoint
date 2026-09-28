@@ -56,6 +56,11 @@ if (process.argv.includes('--history-reconcile')) {
   label = 'command history reconciliation access';
   entry = 'history-reconcile';
 }
+if (process.argv.includes('--action-receipts')) {
+  expected = 41;
+  label = 'consumed action receipt access';
+  entry = 'action-receipts';
+}
 if (process.argv.includes('--procedure-navigation')) {
   expected = 41;
   label = 'procedure workspace return';

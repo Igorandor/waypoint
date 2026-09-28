@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { targets, type Target } from '../../shared/commands';
 import { parameters, bodySchema, spec } from '../../shared/schema';
 import { newCommandBody, changedKeys } from '../../shared/command-draft';
 import { redact } from '../../shared/redaction';
-import { iris, request } from '../api';
+import { iris, request, RequestError } from '../api';
 import { outcomeLabels, type CommandResult } from '../../shared/command-result';
 import { useData } from '../hooks';
 import { Badge, ErrorBox, Loading, PageHeader } from '../components/ui';
@@ -40,6 +40,7 @@ type CommandAttempt =
       sent: true;
       receipt: CommandResult | Pick<CommandResult, 'id' | 'status' | 'message'>;
       error: string;
+      receiptAccessUnverified?: true;
     };
 
 /** Preserve preparation failures separately from an execution whose result may be unknown. */
@@ -79,16 +80,22 @@ export async function submitCommandCandidate(
       command.review.id,
       command.destructive ? command.confirm : command.review.confirmation,
     );
+    if (receipt.id !== command.review.id)
+      throw new Error('The execution returned a different command.');
     return { sent: true, receipt, error: '' };
   } catch (cause) {
     let receipt: CommandAttempt & { sent: true };
     try {
+      if (cause instanceof RequestError && cause.status === 401) throw cause;
+      const current = await transport.readReceipt(command.review.id);
+      if (current.id !== command.review.id)
+        throw new Error('The receipt read returned a different command.');
       receipt = {
         sent: true,
-        receipt: await transport.readReceipt(command.review.id),
+        receipt: current,
         error: (cause as Error).message,
       };
-    } catch {
+    } catch (readError) {
       receipt = {
         sent: true,
         receipt: {
@@ -97,7 +104,8 @@ export async function submitCommandCandidate(
           message:
             'The outcome could not be retrieved. Open command history before sending another write.',
         },
-        error: (cause as Error).message,
+        error: [(cause as Error).message, (readError as Error).message].join(' '),
+        receiptAccessUnverified: true,
       };
     }
     return receipt;
@@ -139,7 +147,46 @@ function TargetStation({ target, operator }: { target: Target; operator: string 
     [pending, setPending] = useState<Candidate>(),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
-    [receipt, setReceipt] = useState<any>();
+    [receipt, setReceipt] = useState<any>(),
+    [receiptAccessUnverified, setReceiptAccessUnverified] = useState(false);
+  const sequence = useRef(0),
+    inFlight = useRef(false);
+  const recoveryElement = useRef<HTMLElement>(null),
+    resultElement = useRef<HTMLDivElement>(null);
+  const focusAfterRead = useRef<'recovery' | 'result' | undefined>(undefined);
+  useEffect(
+    () => () => {
+      sequence.current++;
+      inFlight.current = false;
+    },
+    [],
+  );
+  useEffect(() => {
+    const element =
+      focusAfterRead.current === 'recovery'
+        ? recoveryElement.current
+        : focusAfterRead.current === 'result'
+          ? resultElement.current
+          : undefined;
+    if (element) {
+      element.focus({ preventScroll: true });
+      element.scrollIntoView({ block: 'nearest' });
+      focusAfterRead.current = undefined;
+    }
+  }, [receiptAccessUnverified, receipt]);
+  function begin() {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setError('');
+    return ++sequence.current;
+  }
+  function finish(ticket: number) {
+    if (ticket === sequence.current) {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  }
   const scopeData = useData<any[]>(
     target.scope === 'collection'
       ? '/v2/wallet/collections'
@@ -151,9 +198,13 @@ function TargetStation({ target, operator }: { target: Target; operator: string 
   const records = useData<any[]>(target.scope && !scope ? '' : target.list, listQuery);
   const [execution, setExecution] = useState<any>();
   const select = async (row: any) => {
+    const ticket = begin();
+    if (ticket === undefined) return;
+    focusAfterRead.current = undefined;
     setIdentity(String(row[target.identity]));
     setPending(undefined);
     setReceipt(undefined);
+    setReceiptAccessUnverified(false);
     setError('');
     setDetail(undefined);
     setExecution(undefined);
@@ -162,13 +213,17 @@ function TargetStation({ target, operator }: { target: Target; operator: string 
       const current = target.opaque
         ? row
         : (await iris(target.record, queryFor('GET', String(row[target.identity])))).data;
-      if (target.id === 'tasks')
-        setExecution((await iris('/v2/task/info', { id: String(row[target.identity]) })).data);
+      if (ticket !== sequence.current) return;
+      if (target.id === 'tasks') {
+        const result = await iris('/v2/task/info', { id: String(row[target.identity]) });
+        if (ticket !== sequence.current) return;
+        setExecution(result.data);
+      }
       setDetail(target.id === 'processes' ? { ...row, ...current } : current);
     } catch (e) {
-      setError((e as Error).message);
+      if (ticket === sequence.current) setError((e as Error).message);
     } finally {
-      setBusy(false);
+      finish(ticket);
     }
   };
   function queryFor(method: string, id: string, path = target.record) {
@@ -182,6 +237,8 @@ function TargetStation({ target, operator }: { target: Target; operator: string 
   function prepare(kind: string) {
     setError('');
     setReceipt(undefined);
+    setReceiptAccessUnverified(false);
+    focusAfterRead.current = undefined;
     const creating = kind === 'create',
       deleting = kind === 'delete',
       action = !['create', 'edit', 'delete'].includes(kind);
@@ -232,33 +289,56 @@ function TargetStation({ target, operator }: { target: Target; operator: string 
   }
   async function execute() {
     if (!pending?.review) return;
+    const ticket = begin();
+    if (ticket === undefined) return;
     const command = pending;
+    let receiptReadStarted = false;
     setBusy(true);
     setError('');
     try {
       const result = await submitCommandCandidate(command, {
         readCurrent: async () =>
           (await iris(target.record, queryFor('GET', command.identity))).data,
-        execute: (id, confirmation) => request('commands/' + id + '/execute', { confirmation }),
-        readReceipt: (id) => request('commands/' + id),
+        execute: (id, confirmation) => {
+          if (ticket !== sequence.current) throw new Error('This command workspace is closed.');
+          return request('commands/' + id + '/execute', { confirmation });
+        },
+        readReceipt: (id) => {
+          if (ticket !== sequence.current) throw new Error('This command workspace is closed.');
+          receiptReadStarted = true;
+          setReceipt({ id });
+          setReceiptAccessUnverified(true);
+          setPending(undefined);
+          setDetail(undefined);
+          setIdentity('');
+          focusAfterRead.current = 'recovery';
+          return request('commands/' + id);
+        },
       });
+      if (ticket !== sequence.current) return;
       setError(result.error);
       if (!result.sent) {
         setPending(result.draft);
         setReceipt(undefined);
+        setReceiptAccessUnverified(false);
         return;
       }
       setReceipt(result.receipt);
+      setReceiptAccessUnverified(!!result.receiptAccessUnverified);
+      if (result.receiptAccessUnverified) focusAfterRead.current = 'recovery';
+      else if (receiptReadStarted) focusAfterRead.current = 'result';
       setPending(undefined);
       setDetail(undefined);
       setIdentity('');
       records.refresh();
     } finally {
-      setBusy(false);
+      finish(ticket);
     }
   }
   async function reviewCommand() {
     if (!pending) return;
+    const ticket = begin();
+    if (ticket === undefined) return;
     setBusy(true);
     setError('');
     try {
@@ -280,11 +360,57 @@ function TargetStation({ target, operator }: { target: Target; operator: string 
         },
         selection,
       });
+      if (ticket !== sequence.current) return;
       setPending(acceptCommandReview(pending, review));
     } catch (cause) {
-      setError((cause as Error).message);
+      if (ticket === sequence.current) setError((cause as Error).message);
     } finally {
-      setBusy(false);
+      finish(ticket);
+    }
+  }
+  async function readReceiptAccess(id: string, ticket: number, originalError = '') {
+    setReceipt({ id });
+    setReceiptAccessUnverified(true);
+    focusAfterRead.current = 'recovery';
+    try {
+      const current = await request<CommandResult>('commands/' + id);
+      if (ticket !== sequence.current) return;
+      if (current.id !== id) throw new Error('The receipt read returned a different command.');
+      setReceipt(current);
+      setReceiptAccessUnverified(false);
+      focusAfterRead.current = 'result';
+    } catch (cause) {
+      if (ticket === sequence.current)
+        setError([originalError, (cause as Error).message].filter(Boolean).join(' '));
+    }
+  }
+  async function retryReceipt() {
+    if (!receipt?.id) return;
+    const ticket = begin();
+    if (ticket === undefined) return;
+    try {
+      await readReceiptAccess(receipt.id, ticket);
+    } finally {
+      finish(ticket);
+    }
+  }
+  async function reconcileReceipt() {
+    if (!receipt?.id || receiptAccessUnverified) return;
+    const ticket = begin();
+    if (ticket === undefined) return;
+    const id = receipt.id;
+    try {
+      const result = await request<CommandResult>('commands/' + id + '/reconcile', {});
+      if (ticket !== sequence.current) return;
+      if (result.id !== id) throw new Error('The reconciliation returned a different command.');
+      setReceipt(result);
+    } catch (cause) {
+      if (ticket !== sequence.current) return;
+      setError((cause as Error).message);
+      if (cause instanceof RequestError && [403, 404].includes(cause.status))
+        await readReceiptAccess(id, ticket, (cause as Error).message);
+    } finally {
+      finish(ticket);
     }
   }
   const rows = Array.isArray(records.data) ? records.data : [];
@@ -316,6 +442,7 @@ function TargetStation({ target, operator }: { target: Target; operator: string 
                 setIdentity('');
                 setDetail(undefined);
                 setReceipt(undefined);
+                setReceiptAccessUnverified(false);
               }}
             >
               <option value="">Choose…</option>
@@ -553,33 +680,39 @@ function TargetStation({ target, operator }: { target: Target; operator: string 
               </section>
             )}
           </>
+        ) : receiptAccessUnverified && receipt ? (
+          <aside className="notice" ref={recoveryElement} tabIndex={-1}>
+            <p>
+              The command receipt is unavailable. Its saved ID remains below. Retrying reads that
+              receipt; it does not resend the command.
+            </p>
+            <p>
+              <code style={{ overflowWrap: 'anywhere' }}>{receipt.id}</code>
+            </p>
+            <button disabled={busy} onClick={() => void retryReceipt()}>
+              Retry receipt access
+            </button>
+            <p>
+              <a href="#command-history">Open command history</a>
+            </p>
+          </aside>
         ) : receipt ? (
-          <>
+          <div ref={resultElement} tabIndex={-1}>
             <h2>Command result</h2>
             <Badge tone={receipt.status === 'verified' ? 'good' : 'warning'}>
-              {outcomeLabels[receipt.status as keyof typeof outcomeLabels] ?? receipt.status}
+              {receipt.status === 'reviewed'
+                ? 'Execution outcome unconfirmed'
+                : (outcomeLabels[receipt.status as keyof typeof outcomeLabels] ?? receipt.status)}
             </Badge>
             <p>{receipt.message}</p>
             <Evidence value={receipt} />
             {['uncertain', 'acknowledged'].includes(receipt.status) && (
-              <button
-                disabled={busy}
-                onClick={async () => {
-                  setBusy(true);
-                  try {
-                    setReceipt(await request('commands/' + receipt.id + '/reconcile', {}));
-                  } catch (cause) {
-                    setError((cause as Error).message);
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
+              <button disabled={busy} onClick={() => void reconcileReceipt()}>
                 Read current result
               </button>
             )}
             <a href="#command-history">Open command history</a>
-          </>
+          </div>
         ) : (
           <div className="command-empty">
             <span className="step-dot">2</span>

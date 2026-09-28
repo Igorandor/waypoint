@@ -45,7 +45,7 @@ The Operations desk groups restoration obligations, uncertain commands and open 
 | Host and devices | Real host observations, processes and eligible controls, device definitions and database inventory.             |
 | Logs             | Messages, alerts, asynchronous audit queries, task history, journals and session receipts.                      |
 
-Every write has a separate review step. Execution and destructive controls require a typed target. Updates compare the touched fields with a fresh native read; this reduces lost updates but is not an atomic native lock.
+Every write has a separate review step. Deletion and native actions such as running or suspending a task require a typed target; other reviewed updates use the explicit Execute once button. Updates compare the touched fields with a fresh native read; this reduces lost updates but is not an atomic native lock.
 
 The interface includes light/dark themes, keyboard controls, Ctrl/Cmd+K navigation and responsive layouts. Native API values are never replaced with sample data.
 

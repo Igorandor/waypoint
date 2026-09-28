@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CommandResult } from '../../shared/command-result';
 import { outcomeLabels } from '../../shared/command-result';
-import { request } from '../api';
+import { request, RequestError } from '../api';
 import { ErrorBox } from '../components/ui';
 import { Evidence } from '../components/DataView';
 
@@ -27,47 +27,122 @@ export function ReviewedAction({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [dispatched, setDispatched] = useState(false);
-  async function review() {
+  const [recoveryId, setRecoveryId] = useState<string>();
+  const sequence = useRef(0),
+    pending = useRef(false);
+  const recoveryElement = useRef<HTMLElement>(null),
+    resultElement = useRef<HTMLDivElement>(null);
+  const focusAfterRead = useRef<'recovery' | 'result' | undefined>(undefined);
+  useEffect(
+    () => () => {
+      sequence.current++;
+      pending.current = false;
+    },
+    [],
+  );
+  useEffect(() => {
+    const target =
+      focusAfterRead.current === 'recovery'
+        ? recoveryElement.current
+        : focusAfterRead.current === 'result'
+          ? resultElement.current
+          : undefined;
+    if (target) {
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: 'nearest' });
+      focusAfterRead.current = undefined;
+    }
+  }, [recoveryId, record]);
+  function begin() {
+    if (pending.current) return;
+    pending.current = true;
     setBusy(true);
     setError('');
-    try {
-      setRecord(await request('commands/review', { command: candidate }));
-    } catch (cause) {
-      setError((cause as Error).message);
-    } finally {
+    return ++sequence.current;
+  }
+  function finish(ticket: number) {
+    if (ticket === sequence.current) {
+      pending.current = false;
       setBusy(false);
+    }
+  }
+  async function readReceipt(id: string, ticket: number, originalError = '') {
+    setRecord(undefined);
+    setRecoveryId(id);
+    focusAfterRead.current = 'recovery';
+    try {
+      const result = await request<CommandResult>('commands/' + id);
+      if (ticket !== sequence.current) return;
+      if (result.id !== id) throw new Error('The receipt read returned a different command.');
+      setRecord(result);
+      setRecoveryId(undefined);
+      focusAfterRead.current = 'result';
+    } catch (cause) {
+      if (ticket === sequence.current)
+        setError([originalError, (cause as Error).message].filter(Boolean).join(' '));
+    }
+  }
+  async function retryReceipt() {
+    if (!recoveryId) return;
+    const ticket = begin();
+    if (ticket === undefined) return;
+    try {
+      await readReceipt(recoveryId, ticket);
+    } finally {
+      finish(ticket);
+    }
+  }
+  async function review() {
+    const ticket = begin();
+    if (ticket === undefined) return;
+    try {
+      const result = await request<CommandResult>('commands/review', { command: candidate });
+      if (ticket === sequence.current) setRecord(result);
+    } catch (cause) {
+      if (ticket === sequence.current) setError((cause as Error).message);
+    } finally {
+      finish(ticket);
     }
   }
   async function execute() {
     if (!record || dispatched) return;
-    setBusy(true);
-    setError('');
+    const ticket = begin();
+    if (ticket === undefined) return;
+    const id = record.id;
     setDispatched(true);
     try {
-      setRecord(await request('commands/' + record.id + '/execute', { confirmation }));
+      const result = await request<CommandResult>('commands/' + id + '/execute', { confirmation });
+      if (ticket !== sequence.current) return;
+      if (result.id !== id) throw new Error('The execution returned a different command.');
+      setRecord(result);
       onSettled?.();
     } catch (cause) {
+      if (ticket !== sequence.current) return;
       setError((cause as Error).message);
-      try {
-        setRecord(await request('commands/' + record.id));
-      } catch {
-        /* Keep the consumed ID visible for recovery. */
-      }
+      if (!(cause instanceof RequestError && cause.status === 401))
+        await readReceipt(id, ticket, (cause as Error).message);
     } finally {
-      setBusy(false);
+      finish(ticket);
     }
   }
   async function reconcile() {
     if (!record) return;
-    setBusy(true);
-    setError('');
+    const ticket = begin();
+    if (ticket === undefined) return;
+    const id = record.id;
     try {
-      setRecord(await request('commands/' + record.id + '/reconcile', {}));
+      const result = await request<CommandResult>('commands/' + id + '/reconcile', {});
+      if (ticket !== sequence.current) return;
+      if (result.id !== id) throw new Error('The reconciliation returned a different command.');
+      setRecord(result);
       onSettled?.();
     } catch (cause) {
+      if (ticket !== sequence.current) return;
       setError((cause as Error).message);
+      if (cause instanceof RequestError && [403, 404].includes(cause.status))
+        await readReceipt(id, ticket, (cause as Error).message);
     } finally {
-      setBusy(false);
+      finish(ticket);
     }
   }
   return (
@@ -79,7 +154,23 @@ export function ReviewedAction({
         </button>
       </div>
       {error && <ErrorBox error={error} />}
-      {!record ? (
+      {recoveryId ? (
+        <aside className="notice" ref={recoveryElement} tabIndex={-1}>
+          <p>
+            The command receipt is unavailable. Its saved ID remains below. Retrying reads that
+            receipt; it does not resend the command.
+          </p>
+          <p>
+            <code style={{ overflowWrap: 'anywhere' }}>{recoveryId}</code>
+          </p>
+          <button disabled={busy} onClick={() => void retryReceipt()}>
+            Retry receipt access
+          </button>
+          <p>
+            <a href="#command-history">Open command history</a>
+          </p>
+        </aside>
+      ) : !record ? (
         <>
           <p>
             Prepare a server review using the current target state. This step sends no native
@@ -91,8 +182,12 @@ export function ReviewedAction({
           </button>
         </>
       ) : (
-        <>
-          <h4>{outcomeLabels[record.status]}</h4>
+        <div className="reviewed-action-result" ref={resultElement} tabIndex={-1}>
+          <h4>
+            {dispatched && record.status === 'reviewed'
+              ? 'Execution outcome unconfirmed'
+              : outcomeLabels[record.status]}
+          </h4>
           <p>{record.message}</p>
           <dl className="dossier-facts">
             <div>
@@ -156,7 +251,7 @@ export function ReviewedAction({
             </p>
           )}
           <a href="#command-history">Open command history</a>
-        </>
+        </div>
       )}
     </section>
   );
