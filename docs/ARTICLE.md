@@ -68,4 +68,4 @@ The September 27 checkpoint passed production builds and 236 Node tests. Earlier
 
 ## Video walkthrough
 
-[Watch the recorded workflow on YouTube](https://www.youtube.com/watch?v=75ABhoRBS-4).
+[Watch the recorded workflow on YouTube](https://www.youtube.com/watch?v=ZKfUzavGfEo).

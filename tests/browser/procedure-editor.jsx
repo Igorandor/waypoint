@@ -226,6 +226,7 @@ async function run() {
       sent.payload.body.title === 'Draft from A revision 2',
   );
   await click('Cancel');
+  await click('Discard draft');
   await click('Edit latest');
   await settle(() => field('Procedure name')?.value === 'Procedure B version 1', 'new editor B');
   await setValue(field('Version change note'), 'Independent B edit');

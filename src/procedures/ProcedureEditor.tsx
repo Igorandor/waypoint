@@ -21,6 +21,7 @@ export function ProcedureEditor({
   remoteError = '',
   onSave,
   onCancel,
+  onDirtyChange,
 }: {
   initial: ProcedureBody;
   editing: boolean;
@@ -28,11 +29,16 @@ export function ProcedureEditor({
   remoteError?: string;
   onSave: (body: ProcedureBody, note: string) => Promise<void>;
   onCancel: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [body, setBody] = useState<ProcedureBody>(() => structuredClone(initial));
   const [changeNote, setChangeNote] = useState('');
   const [error, setError] = useState('');
   const [stepKind, setStepKind] = useState<ProcedureStep['kind']>('observation');
+  const initialBody = useRef(JSON.stringify(initial));
+  useEffect(() => {
+    onDirtyChange?.(JSON.stringify(body) !== initialBody.current || (editing && changeNote !== ''));
+  }, [body, changeNote, editing, onDirtyChange]);
   const remoteErrorElement = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!busy && remoteError) remoteErrorElement.current?.focus();

@@ -150,6 +150,9 @@ async function fill(node, value) {
     node.dispatchEvent(new Event('input', { bubbles: true }));
   });
 }
+async function cancelDialog(title) {
+  await act(async () => dialog(title).dispatchEvent(new Event('cancel', { cancelable: true })));
+}
 const reads = () =>
   calls.filter((call) => call.url === `/api/procedures/${id}` && call.method === 'GET').length;
 const writes = () => calls.filter((call) => call.method === 'POST');
@@ -350,6 +353,135 @@ async function suite() {
     'Unsaved new procedure also survives navigation without a record read',
     dialog('New procedure') === newEditor &&
       field('Procedure name').value === 'New unsaved procedure',
+  );
+  await click(button('Cancel', newEditor));
+  check(
+    'Cancel asks before discarding a new draft',
+    dialog('Discard procedure draft?')?.matches(':modal'),
+  );
+  await click(button('Keep editing'));
+  check(
+    'Keep editing preserves the mounted new draft',
+    dialog('New procedure') === newEditor &&
+      field('Procedure name').value === 'New unsaved procedure',
+  );
+  await cancelDialog('New procedure');
+  check(
+    'Editor cancel event asks before discarding',
+    dialog('Discard procedure draft?')?.matches(':modal'),
+  );
+  await cancelDialog('Discard procedure draft?');
+  check(
+    'Canceling confirmation returns to the same editor',
+    !dialog('Discard procedure draft?') &&
+      newEditor.matches(':modal') &&
+      field('Procedure name').value === 'New unsaved procedure',
+  );
+  await click(newEditor.querySelector('[aria-label="Close dialog"]'));
+  check('Close button uses the same discard guard', !!dialog('Discard procedure draft?'));
+  await click(button('Discard draft'));
+  check(
+    'Only explicit discard removes the new draft',
+    !dialog('New procedure') && !dialog('Discard procedure draft?'),
+  );
+
+  await mountEditor();
+  await fill(field('Procedure name'), 'Task handover v1');
+  await fill(field('Version change note'), '');
+  await fill(field('Task ID'), '7');
+  await click(button('Cancel', dialog('Edit procedure')));
+  check(
+    'Reverting all edited fields closes without a discard prompt',
+    !dialog('Edit procedure') && !dialog('Discard procedure draft?'),
+  );
+  await click(button('Edit latest'));
+  await click(button('Cancel', dialog('Edit procedure')));
+  check('An unchanged saved procedure closes immediately', !dialog('Edit procedure'));
+  await click(button('Edit latest'));
+  await fill(field('Version change note'), 'Only the explanation changed');
+  await click(button('Cancel', dialog('Edit procedure')));
+  check('A version note alone is an unsaved change', !!dialog('Discard procedure draft?'));
+  await click(button('Keep editing'));
+  check(
+    'The version note survives its discard prompt',
+    field('Version change note').value === 'Only the explanation changed',
+  );
+  await click(button('Save new version'));
+  await click(button('Cancel', dialog('Edit procedure')));
+  await click(button('Keep editing'));
+  check(
+    'A refused save keeps its message and draft through confirmation',
+    dialog('Edit procedure').textContent.includes('Synthetic revision conflict') &&
+      field('Version change note').value === 'Only the explanation changed',
+  );
+  holdSave = true;
+  releaseSave = undefined;
+  await act(async () => {
+    button('Save new version').click();
+    dialog('Edit procedure').dispatchEvent(new Event('cancel', { cancelable: true }));
+  });
+  await waitFor(() => !!releaseSave);
+  await click(dialog('Edit procedure').querySelector('[aria-label="Close dialog"]'));
+  await cancelDialog('Edit procedure');
+  check(
+    'Pending save blocks dismissal immediately and after busy render',
+    !dialog('Discard procedure draft?') &&
+      dialog('Edit procedure')?.matches(':modal') &&
+      document.querySelector('.procedure-editor fieldset').disabled,
+  );
+  await act(async () => releaseSave());
+  check(
+    'Successful save closes without a discard prompt',
+    !dialog('Edit procedure') && !dialog('Discard procedure draft?'),
+  );
+
+  await mountEditor();
+  await click(button('Cancel', dialog('Edit procedure')));
+  await navigate('Command history');
+  await navigate('Procedure library');
+  await waitFor(() => !button('Discard draft').disabled);
+  check(
+    'Global navigation retains both discard choice and exact editor draft',
+    dialog('Discard procedure draft?')?.matches(':modal') &&
+      field('Procedure name').value === 'Unfinished three-step draft' &&
+      field('Version change note').value === 'Preserve operator explanation',
+  );
+  for (const status of [403, 404]) {
+    await navigate('Command history');
+    detailStatus = status;
+    await navigate('Procedure library');
+    await waitFor(() => !dialog('Edit procedure'));
+    check(
+      `GET ${status} clears protected draft even while discard confirmation is open`,
+      !dialog('Discard procedure draft?') &&
+        !document.querySelector('.procedure-editor') &&
+        !button('Export version'),
+    );
+    if (status === 403) {
+      await mountEditor();
+      await click(button('Cancel', dialog('Edit procedure')));
+    }
+  }
+  await mountEditor();
+  await click(button('Cancel', dialog('Edit procedure')));
+  await navigate('Command history');
+  detailStatus = 503;
+  await navigate('Procedure library');
+  await waitFor(() => !button('Discard draft').disabled);
+  await cancelDialog('Discard procedure draft?');
+  check(
+    'Leaving confirmation after transient failure exposes only access recovery',
+    !!field('Procedure name').closest('[hidden]') &&
+      !!button('Read procedure again', dialog('Edit procedure')),
+  );
+  detailStatus = 200;
+  await click(button('Read procedure again', dialog('Edit procedure')));
+  check(
+    'Access recovery restores the draft retained through confirmation',
+    field('Procedure name').value === 'Unfinished three-step draft' &&
+      field('Task ID').value === '42' &&
+      field('Version change note').value === 'Preserve operator explanation' &&
+      !field('Procedure name').closest('[hidden]'),
   );
   check(
     'All writes were intercepted revision fixtures, without native actions',

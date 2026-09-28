@@ -19,3 +19,9 @@ Final integration: all ten actual React browser checks passed with runner exit0.
 ## Switching tools
 
 You can switch to another tool and return to the open procedure editor without losing its fields or version note. Saved procedures are checked for current read access on return. If that check temporarily fails, use **Read procedure again**; the draft stays hidden until the read succeeds. A denied or missing record closes its protected editor. The draft retains its original revision, so a concurrent change still requires resolving the conflict explicitly. Navigation never saves or retries a write. Save before reloading or signing out; drafts are held only in browser memory.
+
+## Closing an unfinished edit
+
+Escape, the close button and Cancel ask before discarding a changed procedure or version note. **Keep editing** returns to the same draft; **Discard draft** closes it. An unchanged form, including one whose changes were fully reverted, closes immediately. A pending save cannot be dismissed or submitted again through these controls. A denied or deleted procedure still clears its protected draft without asking to retain it.
+
+Verification on September 28, 2026: production build and 236 Node tests passed. `node scripts/test-hook-browser.mjs --procedure-navigation` completed 41 actual-App checks covering navigation, access recovery, discard choices and pending writes. The existing procedure editor runner passed all ten ownership and error-focus checks. Desktop and 390px browser checks used real Escape and button interactions with synthetic transport; they confirmed draft retention, reverted-form closure and explicit discard. No native or durable writes occurred. This guard does not protect against reloading the page or signing out.

@@ -42,7 +42,7 @@ if (process.argv.includes('--navigation')) {
   entry = 'retained-navigation';
 }
 if (process.argv.includes('--procedure-navigation')) {
-  expected = 23;
+  expected = 41;
   label = 'procedure workspace return';
   entry = 'procedure-navigation';
 }

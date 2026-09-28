@@ -18,6 +18,10 @@ import { ProcedureVersionDiff } from './ProcedureVersionDiff';
 import { readProtected, readProtectedRecord, refreshProtected } from '../protected-read';
 import './procedures.css';
 
+type ProcedureDraft =
+  | { body: ProcedureBody; editing: false }
+  | { body: ProcedureBody; editing: true; id: string; revision: number };
+
 export function ProcedureLibrary({ active = true }: { active?: boolean }) {
   const [list, setList] = useState<ProcedureSummary[]>([]);
   const [selected, setSelected] = useState<Procedure>();
@@ -36,10 +40,7 @@ export function ProcedureLibrary({ active = true }: { active?: boolean }) {
   }
   const [search, setSearch] = useState('');
   const [archiveFilter, setArchiveFilter] = useState('active');
-  const [editor, setEditor] = useState<
-    | { body: ProcedureBody; editing: false }
-    | { body: ProcedureBody; editing: true; id: string; revision: number }
-  >();
+  const [editor, setEditor] = useState<ProcedureDraft>();
   const [importing, setImporting] = useState(false);
   const [importText, setImportText] = useState('');
   const [duplicateTitle, setDuplicateTitle] = useState('');
@@ -515,34 +516,15 @@ export function ProcedureLibrary({ active = true }: { active?: boolean }) {
         )}
       </div>
       {editor && (
-        <Modal
-          title={editor.editing ? 'Edit procedure' : 'New procedure'}
-          onClose={() => {
-            if (!busy) setEditor(undefined);
-          }}
-        >
-          <div className="modal-body">
-            {editorUnverified && (
-              <div role="alert" className="error-box">
-                The draft is hidden until current access is confirmed.
-                {error && <p>{error}</p>}
-                <button disabled={busy} onClick={() => void recheck(editor.id)}>
-                  Read procedure again
-                </button>
-              </div>
-            )}
-            <div hidden={editorUnverified}>
-              <ProcedureEditor
-                initial={editor.body}
-                editing={editor.editing}
-                busy={busy || editorUnverified}
-                remoteError={editorUnverified ? '' : error}
-                onSave={save}
-                onCancel={() => setEditor(undefined)}
-              />
-            </div>
-          </div>
-        </Modal>
+        <ProcedureEditorDialog
+          editor={editor}
+          busy={busy}
+          unverified={editorUnverified}
+          error={error}
+          onRecheck={() => editor.editing && void recheck(editor.id)}
+          onSave={save}
+          onClose={() => setEditor(undefined)}
+        />
       )}
       {planning && (
         <Modal title="Plan a specialized procedure" onClose={() => setPlanning(false)}>
@@ -639,6 +621,89 @@ export function ProcedureLibrary({ active = true }: { active?: boolean }) {
               }
             >
               Create independent copy
+            </button>
+          </footer>
+        </Modal>
+      )}
+    </>
+  );
+}
+
+function ProcedureEditorDialog({
+  editor,
+  busy,
+  unverified,
+  error,
+  onRecheck,
+  onSave,
+  onClose,
+}: {
+  editor: ProcedureDraft;
+  busy: boolean;
+  unverified: boolean;
+  error: string;
+  onRecheck: () => void;
+  onSave: (body: ProcedureBody, changeNote: string) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [dirty, setDirty] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const saving = useRef(false);
+  function closeEditor() {
+    if (busy || saving.current) return;
+    if (dirty) setConfirmDiscard(true);
+    else onClose();
+  }
+  return (
+    <>
+      <Modal title={editor.editing ? 'Edit procedure' : 'New procedure'} onClose={closeEditor}>
+        <div className="modal-body">
+          {unverified && (
+            <div role="alert" className="error-box">
+              The draft is hidden until current access is confirmed.
+              {error && <p>{error}</p>}
+              <button disabled={busy} onClick={onRecheck}>
+                Read procedure again
+              </button>
+            </div>
+          )}
+          <div hidden={unverified}>
+            <ProcedureEditor
+              initial={editor.body}
+              editing={editor.editing}
+              busy={busy || unverified}
+              remoteError={unverified ? '' : error}
+              onSave={async (body, changeNote) => {
+                if (busy || saving.current) return;
+                saving.current = true;
+                try {
+                  await onSave(body, changeNote);
+                } finally {
+                  saving.current = false;
+                }
+              }}
+              onCancel={closeEditor}
+              onDirtyChange={setDirty}
+            />
+          </div>
+        </div>
+      </Modal>
+      {confirmDiscard && (
+        <Modal title="Discard procedure draft?" onClose={() => setConfirmDiscard(false)}>
+          <div className="modal-body">
+            <p>Your procedure changes have not been saved. Keep editing or discard this draft.</p>
+          </div>
+          <footer>
+            <button autoFocus onClick={() => setConfirmDiscard(false)}>
+              Keep editing
+            </button>
+            <button
+              disabled={busy}
+              onClick={() => {
+                if (!busy && !saving.current) onClose();
+              }}
+            >
+              Discard draft
             </button>
           </footer>
         </Modal>
