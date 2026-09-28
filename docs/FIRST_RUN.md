@@ -17,7 +17,7 @@ If creation reports an uncertain result, the plan may already be saved. Choose *
 
 ## Hand over the result
 
-Select **Prepare handover** in the run. Enter an intended recipient, a short summary and any outstanding risks. Use **Add follow-up** for a concrete next action; its optional deadline is labelled **Due (UTC)**. Select **Save handover details**, then download **Printable report** or **JSON package**.
+Select **Prepare handover** in the run. Enter an intended recipient, a short summary and any outstanding risks. Use **Add follow-up** for a concrete next action; its optional deadline is labelled **Due (UTC)**. Select **Save handover details**, then download **Printable report** or **JSON package**. Open the printable HTML file in a browser to read it or print it. Large evidence blocks are shortened and labelled in HTML; include the JSON package when the recipient needs the retained data in full.
 
 If you close an edited handover, choose **Keep editing** to retain the draft or **Discard draft** to remove your unsaved changes. Escape from that confirmation returns to the editor. A refused save leaves your text available to review. Switching tools suspends an open run dialog; returning to **Runs** restores its draft. Drafts remain in memory only: save before reloading the browser or signing out.
 

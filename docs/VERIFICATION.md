@@ -1,5 +1,11 @@
 # Verification record
 
+## Handover report on narrow screens — September 28, 2026
+
+Release 1.0.9 wraps long targets, references and evidence identifiers, stacks responsibility metadata on narrow screens, and keeps follow-up and journal columns readable in named, keyboard-scrollable regions. Desktop column proportions reserve space for state and dates. Print sizing and exported values remain unchanged. The first-run guide explains when to include the full JSON package alongside the shortened printable evidence.
+
+The four existing handover-report tests and production build pass. A schema-valid synthetic run with a long route, reference URL, follow-up and journal entry reproduced a 375px document overflowing to 970px. The corrected document measured375px client and scroll width inside a390px frame. Keyboard scrolling exposed complete follow-up dates; desktop checks confirmed readable state and timestamp columns. These checks made no native or durable writes and do not certify physical devices or printed output.
+
 ## Operations desk access refresh — September 28, 2026
 
 Release 1.0.8 removes cached summaries and a matching open inspector as soon as a source refuses access, without waiting for unrelated source reads. Refused or missing individual records also disappear from the desk. Delayed detail responses and older refreshes cannot restore protected content after a newer refusal. A temporary source failure retains a previously read inspector, including a confirmed reconciliation result; unrelated source refusals do not remove readable records.
