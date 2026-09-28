@@ -1,5 +1,13 @@
 # Verification record
 
+## Added and removed procedure definitions — September 28, 2026
+
+Release 1.0.13 includes the full present definition of each added or removed step in version comparison and its JSON export. Observations retain source and target; checklists retain nested items, note requirements and references; assertions retain their dependencies, checks and expected values. Definitions use a single value column with readable field labels. Existing-step changes keep their before/after comparison. Identity matching, counts, saved versions and execution are unchanged.
+
+Production build and 241 Node tests pass, including observation, checklist, assertion, reverse-direction and reorder regressions. Ten actual-component browser checks pass, covering visible definitions, literal rendering of untrusted instruction text, the actual download Blob payload, reversed and identical versions, and ordinary changed fields. Checks use schema-valid synthetic records without native or durable writes.
+
+Manual desktop and 390px checks confirm readable definitions, long targets wrapping without widening the document, and reversed comparison retaining the correct values. Client/scroll widths are 1280/1280px and 390/390px respectively. This is responsive browser coverage, not a physical-device test.
+
 ## Consumed command receipt recovery - September 28, 2026
 
 Release 1.0.12 hides previously downloaded command evidence while checking receipt access after an execution failure or refused/missing reconciliation. Both task actions and the Command station retain the consumed ID and offer a GET-only retry. A restored historical review cannot reopen execution; it is labelled Execution outcome unconfirmed. Pre-dispatch conflicts retain the unsent draft. Synchronous in-flight guards and workspace tickets prevent duplicate dispatch and late updates after closing a workspace.

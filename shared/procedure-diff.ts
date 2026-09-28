@@ -33,9 +33,9 @@ function normalized(value: unknown): unknown {
 function different(before: unknown, after: unknown) {
   return JSON.stringify(normalized(before)) !== JSON.stringify(normalized(after));
 }
-function stepFields(before: ProcedureStep, after: ProcedureStep): ProcedureFieldChange[] {
-  const a = before as unknown as Record<string, unknown>,
-    b = after as unknown as Record<string, unknown>;
+function stepFields(before?: ProcedureStep, after?: ProcedureStep): ProcedureFieldChange[] {
+  const a = (before ?? {}) as Record<string, unknown>,
+    b = (after ?? {}) as Record<string, unknown>;
   return [...new Set([...Object.keys(a), ...Object.keys(b)])]
     .filter((field) => field !== 'id' && different(a[field], b[field]))
     .map((field) => ({ field, before: a[field], after: b[field] }));
@@ -59,7 +59,7 @@ export function compareProcedureVersions(
         title: right.step.title,
         kind: 'added',
         afterPosition: right.index + 1,
-        fields: [],
+        fields: stepFields(undefined, right.step),
         dependencyChanged: right.step.kind === 'assertion',
       });
       continue;
@@ -89,7 +89,7 @@ export function compareProcedureVersions(
         title: left.step.title,
         kind: 'removed',
         beforePosition: left.index + 1,
-        fields: [],
+        fields: stepFields(left.step, undefined),
         dependencyChanged: left.step.kind === 'observation' || left.step.kind === 'assertion',
       });
   return {

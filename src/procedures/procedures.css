@@ -245,8 +245,32 @@
   font-size: 12px;
   margin: 0;
 }
+.version-step-definition > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 3fr);
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.version-step-definition dt {
+  font-weight: 600;
+}
+.version-step-definition dd {
+  margin: 0;
+  min-width: 0;
+}
+.version-step-definition pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
 @media (max-width: 600px) {
   .version-change-notes {
     grid-template-columns: 1fr;
+  }
+  .version-step-definition > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
   }
 }

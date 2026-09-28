@@ -16,6 +16,8 @@ Application readiness and Task readiness are separate operational dossiers. Each
 
 Save a readiness procedure from a dossier, or use Guided procedure in the library. Check the target, required privileges, capacity assumptions and evidence dependencies. Review generated steps in the regular editor before saving a version. A definition contains no native mutations. Use Runbooks for maintenance windows and the command station for individual reviewed changes.
 
+When reviewing two saved versions, inspect the definitions of added and removed steps as well as changed fields. An observation's target, checklist requirements or an assertion's expected result can differ even when the titles match. Recreated steps remain additions and removals because comparison uses stored identifiers. Export the comparison to retain these details; existing runs continue using their selected version.
+
 ## Recover a command result
 
 After an execution attempt, its command ID remains consumed in that view even if the response is lost. If Waypoint cannot confirm read access to the saved result, it hides the previous evidence and keeps the ID for recovery. **Retry receipt access** reads that ID without executing the command or repeating reconciliation. A successful read restores current evidence; it does not make the consumed review executable again.

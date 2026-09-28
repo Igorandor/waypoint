@@ -27,7 +27,7 @@ The Operations desk groups restoration obligations, uncertain commands and open 
 
 ## Repeatable procedures and investigations
 
-- The **Procedure library** stores immutable versions of known native reads, manual checklists and closed assertions. Create, edit, duplicate, archive, import or export a definition; a run keeps its selected version. The guided planner builds application, task, capacity or handover reviews. Version comparison shows changed fields, order and evidence dependencies.
+- The **Procedure library** stores immutable versions of known native reads, manual checklists and closed assertions. Create, edit, duplicate, archive, import or export a definition; a run keeps its selected version. The guided planner builds application, task, capacity or handover reviews. Version comparison shows changed fields, added and removed definitions, order and evidence dependencies.
 - **Application readiness** joins configuration with separately authorized namespace/resource observations. It includes a field-group baseline comparison and a checklist for planning a change.
 - **Task readiness** reads configuration, execution state and recent history independently, explains the native schedule and exposes missing evidence. Running work is distinct from suspended scheduling. Run/suspend/resume actions use durable command reviews.
 - **Capacity watch** calculates CPU from consecutive counter deltas, displays memory/disk headroom and supports before/after comparisons. An explicit watch lasts 5–15 minutes at 30–300 second intervals and stops on hidden pages or read errors. Its 120-sample browser buffer can be annotated and exported.

@@ -110,7 +110,28 @@ export function ProcedureVersionDiff({ versions }: { versions: ProcedureVersion[
               expected results.
             </p>
           )}
-          {step.fields.length > 0 && <ChangedFields changes={step.fields} />}
+          {step.fields.length > 0 &&
+            (step.kind === 'added' || step.kind === 'removed' ? (
+              <>
+                <h5>{step.kind === 'added' ? 'Added definition' : 'Removed definition'}</h5>
+                <dl className="version-step-definition">
+                  {step.fields.map((field) => (
+                    <div key={field.field}>
+                      <dt>{fieldLabels[field.field] ?? field.field}</dt>
+                      <dd>
+                        <pre>
+                          {displayProcedureValue(
+                            step.kind === 'added' ? field.after : field.before,
+                          )}
+                        </pre>
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </>
+            ) : (
+              <ChangedFields changes={step.fields} />
+            ))}
         </article>
       ))}
       {!comparison.metadata.length && !visible.length && (
@@ -133,6 +154,23 @@ export function ProcedureVersionDiff({ versions }: { versions: ProcedureVersion[
     </section>
   );
 }
+const fieldLabels: Record<string, string> = {
+  title: 'Title',
+  description: 'When to use it',
+  expectedOutcome: 'Expected outcome',
+  tags: 'Tags',
+  kind: 'Step type',
+  instruction: 'Instructions',
+  source: 'Observation source',
+  target: 'Target',
+  items: 'Checklist items',
+  requireNote: 'Operator note required',
+  reference: 'Reference',
+  sourceStepId: 'Observation step ID',
+  check: 'Check',
+  expected: 'Expected value',
+  threshold: 'Minimum available (%)',
+};
 function ChangedFields({ changes }: { changes: ProcedureFieldChange[] }) {
   return (
     <div className="table-wrap">
@@ -147,7 +185,7 @@ function ChangedFields({ changes }: { changes: ProcedureFieldChange[] }) {
         <tbody>
           {changes.map((change) => (
             <tr key={change.field}>
-              <th>{change.field}</th>
+              <th>{fieldLabels[change.field] ?? change.field}</th>
               <td>
                 <pre>{displayProcedureValue(change.before)}</pre>
               </td>
