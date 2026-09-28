@@ -13,6 +13,8 @@ The **Operations desk** summarizes saved work and follow-ups; use **Run queue** 
 5. Add an **Observation**, **Decision** or **Follow-up** under **Operator notes**, then select **Append note**. For example, record which source needs further investigation and why.
 6. Select **Export report** to retain the run as JSON. Reopen it from run history to confirm that the saved results and note are still present.
 
+If creation reports an uncertain result, the plan may already be saved. Choose **Check saved runs** and inspect the refreshed history before creating another plan. This reads the list without repeating creation or executing a step. If the list cannot be read, the dialog keeps your fields and lets you retry the read. Close and reopen the creation dialog only after checking for the original plan; closing discards its in-memory fields.
+
 ## Hand over the result
 
 Select **Prepare handover** in the run. Enter an intended recipient, a short summary and any outstanding risks. Use **Add follow-up** for a concrete next action; its optional deadline is labelled **Due (UTC)**. Select **Save handover details**, then download **Printable report** or **JSON package**.

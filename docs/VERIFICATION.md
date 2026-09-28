@@ -1,5 +1,11 @@
 # Verification record
 
+## Uncertain plan creation — September 28, 2026
+
+After a lost response, unreadable success response or gateway failure, Create run previously offered a direct retry even if the first plan had already been saved. It now explains the uncertain outcome, keeps the fields and blocks another creation in that dialog. Check saved runs reads history without resending the creation. Successful history reads clear its filters for manual inspection; failed reads retain the draft and permit another read. A denied history read also removes a previously selected protected run. The client neither guesses a matching record nor concludes that an empty list proves nothing was saved. Closing and reopening deliberately starts a new creation form; this is recovery guidance, not server-side deduplication.
+
+Build and 236 Node tests pass. Seventeen actual Runbooks/CreateRun browser checks cover transport loss, unreadable201,503, definitive4xx, pending calls, retained fields, history failures, authorization cleanup, known success and focus. The recovery button receives focus when the uncertain result appears or a recovery read fails, without refocusing on ordinary typing. Desktop and 390px checks verified visible recovery controls, cleared history filters, retained phone draft after503 and explicit200 recovery with one creation request. The phone document measured390px client and scroll width. All records stayed in fixture memory; no native or durable writes. An initial manual fixture omitted the production theme; visual checks were repeated after correcting that fixture. Responsive checks are not physical-device coverage.
+
 ## Procedure draft dismissal — September 28, 2026
 
 Release 1.0.6 protects a changed procedure draft when Escape, Cancel or the close button is used. Keep editing retains the fields and version note, while explicit discard closes the editor. Unchanged or reverted drafts close immediately. Pending saves block dismissal and duplicate submission; a denied source read still clears protected drafts.

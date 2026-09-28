@@ -41,6 +41,11 @@ if (process.argv.includes('--navigation')) {
   label = 'retained run workspace navigation';
   entry = 'retained-navigation';
 }
+if (process.argv.includes('--creation')) {
+  expected = 17;
+  label = 'run creation response recovery';
+  entry = 'run-creation';
+}
 if (process.argv.includes('--procedure-navigation')) {
   expected = 41;
   label = 'procedure workspace return';

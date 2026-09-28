@@ -434,6 +434,26 @@ export function Runbooks() {
             setTemplate(undefined);
             void readList().catch((e) => setError(e.message));
           }}
+          onCheckSavedRuns={async () => {
+            try {
+              await readList();
+            } catch (failure) {
+              if (failure instanceof RequestError && failure.status === 403) {
+                ++detailSequence.current;
+                setRun(undefined);
+              }
+              throw failure;
+            }
+            setSearch('');
+            setFilter('all');
+            setArchived(false);
+            setFrom('');
+            setTo('');
+            setTemplate(undefined);
+            setError(
+              'Creation could not be confirmed. Inspect the refreshed run history before creating another plan.',
+            );
+          }}
         />
       )}
       {comparing && (

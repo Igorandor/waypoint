@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Eye, Wrench } from 'lucide-react';
 import { templates, type TemplateId, type Run } from '../../../shared/runbook';
 import { useData } from '../../hooks';
-import { request } from '../../api';
+import { request, RequestError } from '../../api';
 import { Badge, ErrorBox, Modal } from '../../components/ui';
 import {
   observationSteps,
@@ -14,10 +14,12 @@ export function CreateRun({
   template,
   onClose,
   onCreated,
+  onCheckSavedRuns,
 }: {
   template: TemplateId;
   onClose: () => void;
   onCreated: (run: Run) => void;
+  onCheckSavedRuns: () => Promise<void>;
 }) {
   const definition = templates[template];
   const [sources, setSources] = useState<ObservationKind[]>([...defaultObservation]);
@@ -33,6 +35,15 @@ export function CreateRun({
     [confirmation, setConfirmation] = useState(''),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
+  const [outcomeUnknown, setOutcomeUnknown] = useState(false);
+  const pending = useRef(false);
+  const recoveryButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (outcomeUnknown && !busy && recoveryButton.current?.closest('dialog')?.open) {
+      recoveryButton.current.focus();
+      recoveryButton.current.scrollIntoView({ block: 'nearest' });
+    }
+  }, [outcomeUnknown, busy]);
   const options = (data.data ?? []).filter(
     (row) =>
       definition.target !== 'app' ||
@@ -41,6 +52,8 @@ export function CreateRun({
         !/^\/(api\/(admin|waypoint|relay)|csp\/sys)(\/|$)/i.test(row.Name)),
   );
   async function create() {
+    if (pending.current || outcomeUnknown) return;
+    pending.current = true;
     setBusy(true);
     setError('');
     try {
@@ -54,17 +67,38 @@ export function CreateRun({
       );
     } catch (e) {
       setError((e as Error).message);
+      if (
+        e instanceof TypeError ||
+        (e instanceof RequestError && ((e.status >= 200 && e.status < 300) || e.status >= 500))
+      )
+        setOutcomeUnknown(true);
     } finally {
+      pending.current = false;
       setBusy(false);
     }
+  }
+  async function checkSavedRuns() {
+    if (pending.current || !outcomeUnknown) return;
+    pending.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      await onCheckSavedRuns();
+    } catch (failure) {
+      setError('Could not read saved runs: ' + (failure as Error).message);
+    } finally {
+      pending.current = false;
+      setBusy(false);
+    }
+  }
+  function close() {
+    if (!pending.current) onClose();
   }
   return (
     <Modal
       title={definition.title}
       subtitle="Review the plan before creating a run"
-      onClose={() => {
-        if (!busy) onClose();
-      }}
+      onClose={close}
     >
       <div className="modal-body">
         <Badge tone={definition.target === 'none' ? 'good' : 'warning'}>
@@ -80,7 +114,7 @@ export function CreateRun({
         </Badge>
         <p>{definition.description}</p>
         {template === 'observe' && (
-          <fieldset>
+          <fieldset disabled={busy}>
             <legend>Build your observation plan</legend>
             <label className="field">
               Plan title (optional)
@@ -123,7 +157,7 @@ export function CreateRun({
                   setTarget(e.target.value);
                   setConfirmation('');
                 }}
-                disabled={data.loading}
+                disabled={data.loading || busy}
               >
                 <option value="">{data.loading ? 'Reading IRIS…' : 'Choose a target…'}</option>
                 {options.map((row) => (
@@ -162,6 +196,7 @@ export function CreateRun({
               value={confirmation}
               onChange={(e) => setConfirmation(e.target.value)}
               autoComplete="off"
+              disabled={busy}
             />
           </label>
         )}
@@ -171,21 +206,33 @@ export function CreateRun({
           {definition.target !== 'none' && 'The original state is captured by the first step.'}
         </div>
         {error && <ErrorBox error={error} />}
+        {outcomeUnknown && (
+          <div className="notice warning" role="status">
+            <p>
+              Creation could not be confirmed. The plan may have been saved. Creating a plan
+              executes no run steps. Check saved runs before creating another plan.
+            </p>
+            <button ref={recoveryButton} disabled={busy} onClick={() => void checkSavedRuns()}>
+              {busy ? 'Reading runs…' : 'Check saved runs'}
+            </button>
+          </div>
+        )}
       </div>
       <footer>
-        <button disabled={busy} onClick={onClose}>
+        <button disabled={busy} onClick={close}>
           Cancel
         </button>
         <button
           className="primary"
           disabled={
             busy ||
+            outcomeUnknown ||
             !plan.length ||
             (definition.target !== 'none' && (!target || confirmation !== target))
           }
           onClick={() => void create()}
         >
-          {busy ? 'Saving plan…' : 'Create run'}
+          {busy && !outcomeUnknown ? 'Saving plan…' : 'Create run'}
           <ArrowRight size={16} />
         </button>
       </footer>
