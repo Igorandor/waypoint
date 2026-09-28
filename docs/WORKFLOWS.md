@@ -44,6 +44,8 @@ For an assertion in the printable report, **Referenced observation** identifies 
 
 After closing a run without unresolved restoration, archive it. Compare completed observations by source, target and occurrence. Known root inventories align by application/journal name or stable task ID. Ordered configuration arrays keep their positions. A process inventory needs PID, job number and start time to establish generation identity; otherwise its rows are compared by position. Missing/failed sources and truncated values remain partial evidence, not proof of object deletion.
 
+In a run comparison, **Only in before** and **Only in after** describe the two recorded responses. A task may leave a bounded result when newer rows enter the response; that does not prove the task was deleted. Check the collection notice for each side before acting on a difference. Comparison JSON retains these notices and any recorded request limits. Older observations with no saved limit remain explicitly uncertain. The collection warning remains visible when unchanged sources are hidden. The separate comparison data-limit warning concerns how much saved evidence was compared, not how many records IRIS originally returned.
+
 ## Investigate capacity and logs
 
 Capacity watch starts with manual reads. An explicit watch schedules one in-flight read at most, every 30–300 seconds for 5–15 minutes. It stops on page hiding, navigation, read failure or elapsed duration. CPU utilization requires consecutive increasing native counters in the same host scope and topology. Resets and gaps yield unknown values. Charts do not interpolate missing samples.

@@ -1,12 +1,20 @@
 # Verification record
 
+## Collection context in run comparisons — September 29, 2026
+
+Release 1.0.18 preserves the request limits and collection notices of both successful observations in comparison JSON and in the run comparison. Fields found in only one response are labelled **Only in before** or **Only in after**; they do not prove native creation or deletion. Unrecorded legacy limits remain unknown. A summary warning remains visible when unchanged sources are hidden. Failed or pending observations cannot expose stale collection metadata. Identity matching, raw change enums and comparison traversal limits are unchanged.
+
+Build and 255 tests pass. Four regression groups cover shifted 100-row windows, different limits, legacy captures, unchanged results and failed/missing sources. Nine actual-component browser checks cover those cases and the generated comparison JSON. Run `node scripts/test-comparison-collection-browser.mjs` and open its printed URL.
+
+Manual desktop and 390px checks confirm readable current/legacy notices and a visible warning when identical sources are hidden. Page widths match at 1280px and 390px. Keyboard Tab reaches the phone table; ArrowRight scrolls its 550px contents within a 277px region. The data is synthetic, with no native calls or durable writes. Blob inspection does not certify browser file-save completion or physical devices.
+
 ## Recorded collection limits — September 29, 2026
 
 Successful bounded inventory and task-history reads now retain optional collection metadata from their exact request parameters. The evidence payload is unchanged. Run JSON and handover JSON preserve it; RunDetail and printable HTML display it. Legacy bounded observations remain readable and explicitly lack a recorded limit in those views. Failed and pending reads do not claim a collected result. Log responses retain their existing source bounds. A requested limit does not establish actual truncation or completeness.
 
 Build and 251 tests pass. Four memory-only engine/validation regressions cover all five bounded procedure sources, ordinary inventory requests, unchanged log handling and evidence arrays, failed retry cleanup, legacy records and invalid metadata. Eight actual-component browser checks verify selected results and generated run JSON, handover JSON and HTML, including 100-row inventory and 50-row history requests, old records, failure and pending states. Run `node scripts/test-collection-limits-browser.mjs` and open its printed URL.
 
-Manual desktop and 390px checks confirm current and legacy notices, an explicit failed-read error, and a readable limit beside the evidence in generated HTML. Page widths match at1280px and390px; the report's inner frame matches at343px. These are synthetic responses with no native calls or writes to existing runs. Generated Blob inspection does not certify browser file-save completion or physical printing. Raw Export results remains response-only; full run exports retain context.
+Manual desktop and 390px checks confirm current and legacy notices, an explicit failed-read error, and a readable limit beside the evidence in generated HTML. Page widths match at 1280px and 390px; the report's inner frame matches at343px. These are synthetic responses with no native calls or writes to existing runs. Generated Blob inspection does not certify browser file-save completion or physical printing. Raw Export results remains response-only; full run exports retain context.
 
 ## Recovering procedure-run creation — September 28, 2026
 

@@ -21,6 +21,10 @@ export function RunComparison({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [showUnchanged, setShowUnchanged] = useState(false);
+  const collectionBoundaries =
+    result?.sources.filter(
+      (source) => source.beforeCollectionNotice || source.afterCollectionNotice,
+    ).length ?? 0;
   async function compare() {
     setBusy(true);
     setError('');
@@ -105,6 +109,14 @@ export function RunComparison({
                 {result.totals.unavailable + result.totals.missing} incomplete sources
               </Badge>
             </div>
+            {collectionBoundaries > 0 && (
+              <p className="comparison-warning collection-boundary-summary" role="status">
+                {collectionBoundaries} source{collectionBoundaries === 1 ? '' : 's'} with bounded or
+                unrecorded collection limits. Matching recorded values do not establish complete
+                inventories or histories. Use Show sources without differences to inspect their
+                limits.
+              </p>
+            )}
             <label className="check-option">
               <input
                 type="checkbox"
@@ -134,6 +146,22 @@ export function RunComparison({
                       ? new Date(source.afterAt).toLocaleString()
                       : 'No later capture'}
                   </small>
+                  {(source.beforeCollectionNotice || source.afterCollectionNotice) && (
+                    <div className="comparison-collection-limits">
+                      {source.beforeCollectionNotice && (
+                        <p>
+                          <strong>Before: </strong>
+                          {source.beforeCollectionNotice}
+                        </p>
+                      )}
+                      {source.afterCollectionNotice && (
+                        <p>
+                          <strong>After: </strong>
+                          {source.afterCollectionNotice}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   <p>{source.note}</p>
                   {source.truncated && (
                     <p className="comparison-warning">
@@ -156,7 +184,13 @@ export function RunComparison({
                           {source.changes.map((change) => (
                             <tr key={change.path}>
                               <th>{change.path}</th>
-                              <td>{change.change}</td>
+                              <td>
+                                {change.change === 'added'
+                                  ? 'Only in after'
+                                  : change.change === 'removed'
+                                    ? 'Only in before'
+                                    : 'Changed'}
+                              </td>
                               <td>
                                 <Evidence value={change.before} />
                               </td>

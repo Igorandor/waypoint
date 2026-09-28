@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { Run, RunStep } from './runbook.js';
 import { referenceSchema, type AssertionResult } from './procedure.js';
+import { collectionLimitNotice } from './collection-limits.js';
 
 export const followUpSchema = z
   .object({
@@ -101,6 +102,10 @@ export type SourceComparison = {
   state: 'compared' | 'missing-before' | 'missing-after' | 'unavailable';
   beforeAt?: string;
   afterAt?: string;
+  beforeCollection?: RunStep['collection'];
+  afterCollection?: RunStep['collection'];
+  beforeCollectionNotice?: string;
+  afterCollectionNotice?: string;
   changes: FieldChange[];
   unchanged: number;
   truncated: boolean;
@@ -231,12 +236,22 @@ export function compareRuns(before: Run, after: Run): RunComparison {
   for (const key of new Set([...left.keys(), ...right.keys()])) {
     const previous = left.get(key),
       current = right.get(key);
+    const beforeCollectionNotice = collectionLimitNotice(previous),
+      afterCollectionNotice = collectionLimitNotice(current);
     const comparison: SourceComparison = {
       key,
       title: current?.title ?? previous!.title,
       state: 'compared',
       beforeAt: previous?.finishedAt,
       afterAt: current?.finishedAt,
+      ...(beforeCollectionNotice && previous?.collection
+        ? { beforeCollection: { ...previous.collection } }
+        : {}),
+      ...(afterCollectionNotice && current?.collection
+        ? { afterCollection: { ...current.collection } }
+        : {}),
+      beforeCollectionNotice,
+      afterCollectionNotice,
       changes: [],
       unchanged: 0,
       truncated: false,
@@ -279,7 +294,7 @@ export function compareRuns(before: Run, after: Run): RunComparison {
         (comparison.truncated
           ? 'Partial comparison: omitted fields are not treated as additions or removals. '
           : '') +
-        'Recorded values only. Ordered configuration arrays are compared by position; known root inventories use stable native identities. ' +
+        'Recorded values only. A value present only in one response does not establish native object creation or deletion. Ordered configuration arrays are compared by position; known root inventories use stable native identities. ' +
         (source === 'processes'
           ? 'Process rows without job number and start time cannot establish process continuity and are compared by position. '
           : '') +
