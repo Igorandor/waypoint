@@ -255,7 +255,7 @@ test('actual import callback preserves pasted text and selection for rejected de
     'setBusy',
     'setError',
     'RequestError',
-    'const selected = undefined; const actionPending = { current: false }; const unverified = new Set();\n' +
+    'const selected = undefined; const returning = false; const actionPending = { current: false }; const unverified = new Set(); const actionFailure = { current: "" }; const setErrorValue = setError;\n' +
       code +
       '\nreturn importDefinition();',
   );

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Archive, Copy, Download, Edit3, Play, Plus, RefreshCw, Upload } from 'lucide-react';
 import {
   observationSources,
@@ -18,13 +18,22 @@ import { ProcedureVersionDiff } from './ProcedureVersionDiff';
 import { readProtected, readProtectedRecord, refreshProtected } from '../protected-read';
 import './procedures.css';
 
-export function ProcedureLibrary() {
+export function ProcedureLibrary({ active = true }: { active?: boolean }) {
   const [list, setList] = useState<ProcedureSummary[]>([]);
   const [selected, setSelected] = useState<Procedure>();
   const [versionNumber, setVersionNumber] = useState(1);
-  const [busy, setBusy] = useState(false);
+  const [actionBusy, setBusy] = useState(false);
+  const [returnCheckPending, setReturnCheckPending] = useState(false);
+  const navigationEpoch = useRef(0);
+  const returning = active && returnCheckPending;
+  const busy = actionBusy || returning;
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setErrorValue] = useState('');
+  const actionFailure = useRef('');
+  function setError(message: string) {
+    actionFailure.current = '';
+    setErrorValue(message);
+  }
   const [search, setSearch] = useState('');
   const [archiveFilter, setArchiveFilter] = useState('active');
   const [editor, setEditor] = useState<
@@ -39,8 +48,8 @@ export function ProcedureLibrary() {
   const [unverified, setUnverified] = useState<Set<string>>(() => new Set());
   const detailSequence = useRef(0);
   const actionPending = useRef(false);
-  const selectedUnverified = !!selected && unverified.has(selected.id);
-  const editorUnverified = !!editor?.editing && unverified.has(editor.id);
+  const selectedUnverified = !!selected && (returning || unverified.has(selected.id));
+  const editorUnverified = !!editor?.editing && (returning || unverified.has(editor.id));
   const version = selected?.versions.find((item) => item.number === versionNumber);
   const readList = () =>
     readProtected<ProcedureSummary[]>('procedures', setList, () => setList([]));
@@ -64,8 +73,8 @@ export function ProcedureLibrary() {
         verified();
         setSelected((current) => (current?.id === id ? undefined : current));
         setList((current) => current.filter((record) => record.id !== id));
+        setEditor((current) => (current?.editing && current.id === id ? undefined : current));
         if (selected?.id === id) {
-          setEditor((current) => (current?.editing ? undefined : current));
           setDuplicating(false);
           setDuplicateTitle('');
         }
@@ -89,15 +98,50 @@ export function ProcedureLibrary() {
       ++detailSequence.current;
     };
   }, []);
+  useLayoutEffect(() => {
+    ++navigationEpoch.current;
+    if (!active) {
+      ++detailSequence.current;
+      setReturnCheckPending(true);
+      setUnverified((current) => {
+        const pending = new Set(current);
+        if (selected) pending.add(selected.id);
+        if (editor?.editing) pending.add(editor.id);
+        return pending;
+      });
+    }
+  }, [active]);
+  useEffect(() => {
+    // A save owns its captured revision until it settles. Only then can the
+    // return read refresh the saved record; the mounted draft is never rebound.
+    if (!active || !returnCheckPending || actionBusy || loading) return;
+    const epoch = navigationEpoch.current;
+    const ids = [...new Set([selected?.id, editor?.editing ? editor.id : undefined])].filter(
+      (id): id is string => !!id,
+    );
+    setLoading(true);
+    setErrorValue(actionFailure.current);
+    setUnverified((current) => new Set([...current, ...ids]));
+    void refreshProtected([readList, ...ids.map((id) => () => readDetail(id))])
+      .then((message) => {
+        if (epoch === navigationEpoch.current)
+          setErrorValue([...new Set([actionFailure.current, message])].filter(Boolean).join(' '));
+      })
+      .finally(() => {
+        if (epoch === navigationEpoch.current) setReturnCheckPending(false);
+        setLoading(false);
+      });
+  }, [active, returnCheckPending, actionBusy, loading]);
   async function perform(action: () => Promise<void>, protectedId?: string) {
-    if (actionPending.current || (protectedId && unverified.has(protectedId))) return;
+    if (returning || actionPending.current || (protectedId && unverified.has(protectedId))) return;
     actionPending.current = true;
     setBusy(true);
     setError('');
     try {
       await action();
     } catch (cause) {
-      setError((cause as Error).message);
+      actionFailure.current = (cause as Error).message;
+      setErrorValue(actionFailure.current);
     } finally {
       actionPending.current = false;
       setBusy(false);

@@ -70,6 +70,7 @@ export default function App() {
     [checking, setChecking] = useState(true),
     [error, setError] = useState(''),
     [page, setPage] = useState(currentPage),
+    [proceduresVisited, setProceduresVisited] = useState(false),
     [theme, setTheme] = useState(() =>
       localStorage.getItem('waypoint-theme') === 'dark' ? 'dark' : 'light',
     ),
@@ -111,6 +112,10 @@ export default function App() {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('waypoint-theme', theme);
   }, [theme]);
+  useEffect(() => {
+    if (!session) setProceduresVisited(false);
+    else if (page === 'procedures') setProceduresVisited(true);
+  }, [page, session]);
   function navigate(id: string) {
     location.hash = id;
     setPage(id);
@@ -143,6 +148,13 @@ export default function App() {
         <RetainedWorkspace hidden={page !== 'runbooks'}>
           <Runbooks />
         </RetainedWorkspace>
+        {(proceduresVisited || page === 'procedures') && (
+          <RetainedWorkspace hidden={page !== 'procedures'}>
+            <Suspense fallback={<Loading />}>
+              <ProcedureLibrary active={page === 'procedures'} />
+            </Suspense>
+          </RetainedWorkspace>
+        )}
         <Suspense fallback={<Loading />}>
           {['apps', 'permissions', 'security', 'tasks', 'system'].includes(page) ? (
             <Operations key={page} area={page} operator={session.info.username} />
@@ -158,9 +170,7 @@ export default function App() {
             <LogInvestigation />
           ) : page === 'operations-desk' ? (
             <OperationsDesk />
-          ) : page === 'procedures' ? (
-            <ProcedureLibrary />
-          ) : page !== 'runbooks' ? (
+          ) : page !== 'runbooks' && page !== 'procedures' ? (
             <Observations key={page} area={page} />
           ) : null}
         </Suspense>

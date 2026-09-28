@@ -41,6 +41,11 @@ if (process.argv.includes('--navigation')) {
   label = 'retained run workspace navigation';
   entry = 'retained-navigation';
 }
+if (process.argv.includes('--procedure-navigation')) {
+  expected = 23;
+  label = 'procedure workspace return';
+  entry = 'procedure-navigation';
+}
 const bundle = await build({
   entryPoints: [fileURLToPath(new URL(`../tests/browser/${entry}.jsx`, import.meta.url))],
   bundle: true,
