@@ -9,8 +9,8 @@ const dispatch = process.argv.includes('--dispatch');
 const handover = process.argv.includes('--handover');
 const access = process.argv.includes('--access');
 const checks = process.argv.includes('--checks');
-const expected = checks ? 14 : access ? 19 : handover ? 14 : dispatch ? 15 : applications ? 8 : 12;
-const label = checks
+let expected = checks ? 14 : access ? 19 : handover ? 14 : dispatch ? 15 : applications ? 8 : 12;
+let label = checks
   ? 'recorded assertion outcomes'
   : access
     ? 'saved-record access recheck'
@@ -23,7 +23,7 @@ const label = checks
           : tasks
             ? 'task inventory and dossier'
             : 'native observation hook';
-const entry = checks
+let entry = checks
   ? 'check-results'
   : access
     ? 'mutation-access'
@@ -36,6 +36,11 @@ const entry = checks
           : tasks
             ? 'task-list'
             : 'native-observation';
+if (process.argv.includes('--navigation')) {
+  expected = 15;
+  label = 'retained run workspace navigation';
+  entry = 'retained-navigation';
+}
 const bundle = await build({
   entryPoints: [fileURLToPath(new URL(`../tests/browser/${entry}.jsx`, import.meta.url))],
   bundle: true,

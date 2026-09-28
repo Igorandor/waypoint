@@ -38,6 +38,7 @@ async function fixture() {
   let effects: Array<() => void> = [];
   const created: unknown[] = [];
   const hooks = {
+    ...require('react'),
     useState(initial: any) {
       const index = cursor++;
       if (!slots.has(index)) slots.set(index, typeof initial === 'function' ? initial() : initial);

@@ -13,7 +13,7 @@ import {
 import { WaypointShell } from './layout/WaypointShell';
 import { Runbooks } from './pages/Runbooks';
 import { request } from './api';
-import { ErrorBox, Loading, Modal } from './components/ui';
+import { ErrorBox, Loading, Modal, RetainedWorkspace } from './components/ui';
 const ProcedureLibrary = lazy(() =>
   import('./procedures/ProcedureLibrary').then((module) => ({ default: module.ProcedureLibrary })),
 );
@@ -140,9 +140,9 @@ export default function App() {
         onLogout={logout}
       >
         {error && <ErrorBox error={error} />}
-        <div hidden={page !== 'runbooks'}>
+        <RetainedWorkspace hidden={page !== 'runbooks'}>
           <Runbooks />
-        </div>
+        </RetainedWorkspace>
         <Suspense fallback={<Loading />}>
           {['apps', 'permissions', 'security', 'tasks', 'system'].includes(page) ? (
             <Operations key={page} area={page} operator={session.info.username} />

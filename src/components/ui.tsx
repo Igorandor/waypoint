@@ -1,4 +1,14 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useRef, type ReactNode } from 'react';
+
+const RetainedWorkspaceHidden = createContext(false);
+
+export function RetainedWorkspace({ hidden, children }: { hidden: boolean; children: ReactNode }) {
+  return (
+    <RetainedWorkspaceHidden.Provider value={hidden}>
+      <div hidden={hidden}>{children}</div>
+    </RetainedWorkspaceHidden.Provider>
+  );
+}
 export const Badge = ({ children, tone = 'neutral' }: { children: ReactNode; tone?: string }) => (
   <span className={'badge ' + tone}>{children}</span>
 );
@@ -43,16 +53,23 @@ export function Modal({
   children: ReactNode;
   onClose: () => void;
 }) {
+  const suspended = useContext(RetainedWorkspaceHidden);
   const dialog = useRef<HTMLDialogElement>(null),
     heading = useId();
   useEffect(() => {
+    if (suspended) return;
     const focus = document.activeElement as HTMLElement;
-    dialog.current?.showModal();
-    return () => focus?.focus();
-  }, []);
+    const element = dialog.current;
+    element?.showModal();
+    return () => {
+      element?.close();
+      if (focus?.isConnected) focus.focus();
+    };
+  }, [suspended]);
   return (
     <dialog
       ref={dialog}
+      hidden={suspended}
       className="waypoint-dialog"
       aria-labelledby={heading}
       onCancel={(event) => {

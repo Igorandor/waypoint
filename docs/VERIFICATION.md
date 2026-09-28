@@ -1,5 +1,13 @@
 # Verification record
 
+## Retained run dialogs during navigation — September 28, 2026
+
+Opening Find a tool from a run dialog and choosing another workspace previously hid the dialog's ancestor while leaving the native dialog modal. The destination page could no longer receive clicks. The retained Runs workspace now suspends its native dialogs when another tool is selected and reopens them on return. The React editor remains mounted, preserving its in-memory fields; suspension does not save a run or invoke the editor's close action.
+
+Production build and 236 tests pass. Fifteen actual-App browser checks cover the runbook chooser, finder navigation, direct hash navigation, destination focus, retained observation title/source selection, and ordinary close/cancel behavior. Desktop and 390px browser checks confirmed that the destination remains usable and the title, added source and dialog focus survive return to Runs. Native Escape still closes the ordinary Create run dialog. These checks use synthetic transport and make no IRIS or durable writes. This boundary applies to retained run dialogs; it does not promise draft persistence after reload, logout or departure from other workspaces.
+
+All 14 existing handover component regressions also pass after the shared modal lifecycle change, including Keep editing / Discard draft, refused saves, revision payloads and pending-save protection. Those regressions dispatch a cancel event; they do not by themselves verify native keyboard Escape.
+
 ## Recorded checks and first-run guidance — September 28, 2026
 
 The step list previously marked passed, failed and unknown assertions alike as Recorded. The list and selected-step badge now show their actual recorded outcome with a separate label and warning icon for failed or unknown results. Completed read-only runs with outstanding checks distinguish finished steps from passed checks. The shared outcome reader also supplies the existing aggregate counts; execution states, native actions and assertion evaluation are unchanged. Procedure checkpoint notes now ask for the decision and follow-up instead of readiness to restore a target. FIRST_RUN directs newcomers to Runs / Runbooks, where New run actually appears.
