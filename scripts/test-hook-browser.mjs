@@ -47,7 +47,7 @@ if (process.argv.includes('--creation')) {
   entry = 'run-creation';
 }
 if (process.argv.includes('--desk-access')) {
-  expected = 20;
+  expected = 43;
   label = 'operations desk current record access';
   entry = 'desk-access';
 }

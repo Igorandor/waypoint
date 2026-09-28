@@ -8,6 +8,8 @@ Inspect a record before acting. The desk reads the durable record, exposes relev
 
 Use **Refresh records** to update the queue. If access to a source is refused, its cached entries and any matching open inspector are removed; other readable sources remain available. A missing or refused individual record is also removed from the desk. A temporary failure while refreshing a source leaves the previously read inspector visible, so check the source error and read time before relying on it. Refresh and inspect the record again after access is restored.
 
+If **Read current result** is refused or reports a missing command, the desk checks access to that saved record separately. Its details and desk-export entry stay hidden during this check. A successful read restores the record; a refused or missing read removes it. If the check is temporarily unavailable, **Retry record access** performs only another read. It does not resend the original command or repeat reconciliation.
+
 ## Prepare a change
 
 Application readiness and Task readiness are separate operational dossiers. Each source reports its own permission or availability error. Configuration, live state and historical results are distinct evidence. A task may be running even when future scheduling is suspended. Native task timestamps lack a UTC offset; wall-time duration estimates and schedule explanations do not predict the next execution.

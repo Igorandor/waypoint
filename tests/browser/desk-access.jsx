@@ -55,6 +55,7 @@ const command = {
 };
 let listCodes,
   detailCodes,
+  reconcileCode,
   held,
   release,
   nextHold,
@@ -66,13 +67,28 @@ window.fetch = async (url, init = {}) => {
     source = parts[2],
     detail = parts.length > 3;
   calls.push({ url, method });
-  if (method === 'POST' && url === '/api/commands/' + command.id + '/reconcile')
-    return Response.json({
-      ...command,
-      status: 'verified',
-      message: 'Confirmed synthetic readback',
-      observedAt: at,
-    });
+  if (method === 'POST' && url === '/api/commands/' + command.id + '/reconcile') {
+    const respond = () =>
+      Response.json(
+        reconcileCode === 200
+          ? {
+              ...command,
+              status: 'verified',
+              message: 'Confirmed synthetic readback',
+              observedAt: at,
+            }
+          : { error: 'Synthetic reconciliation ' + reconcileCode },
+        { status: reconcileCode },
+      );
+    if (nextHold === url) {
+      nextHold = undefined;
+      held = true;
+      return new Promise((resolve) => {
+        release = () => resolve(respond());
+      });
+    }
+    return respond();
+  }
   if (method !== 'GET' || !['runs', 'commands', 'procedures'].includes(source))
     throw Error('Unexpected synthetic request ' + url);
   const code = detail ? detailCodes[source] : listCodes[source];
@@ -122,8 +138,10 @@ async function click(node) {
   await tick();
 }
 async function reset() {
+  records.commands = command;
   listCodes = { runs: 200, commands: 200, procedures: 200 };
   detailCodes = { runs: 200, commands: 200 };
+  reconcileCode = 200;
   calls.length = 0;
   held = false;
   release = undefined;
@@ -326,10 +344,259 @@ async function suite() {
   await act(async () => release());
   await tick();
 }
+async function reconciliationSuite() {
+  const posts = () => calls.filter((call) => call.method === 'POST').length;
+  const gets = () =>
+    calls.filter((call) => call.method === 'GET' && call.url === '/api/commands/' + command.id)
+      .length;
+  for (const refused of [403, 404]) {
+    await reset();
+    await inspect('commands');
+    reconcileCode = refused;
+    await click(button('Read current result'));
+    check(
+      'Reconciliation ' +
+        refused +
+        ' with authorized GET keeps command evidence and initial refusal',
+      has('commands') &&
+        !!inspectButton('commands') &&
+        document.body.textContent.includes('Synthetic reconciliation ' + refused) &&
+        gets() === 2 &&
+        posts() === 1,
+    );
+    for (const missing of [403, 404]) {
+      await reset();
+      await inspect('commands');
+      reconcileCode = refused;
+      detailCodes.commands = missing;
+      await click(button('Read current result'));
+      check(
+        'Reconciliation ' +
+          refused +
+          ' followed by GET' +
+          missing +
+          ' removes only matching protected record',
+        !has('commands') &&
+          !inspectButton('commands') &&
+          !!inspectButton('runs') &&
+          !button('Read current result') &&
+          posts() === 1 &&
+          gets() === 2,
+      );
+    }
+  }
+  await reset();
+  await inspect('commands');
+  reconcileCode = 503;
+  await click(button('Read current result'));
+  check(
+    'Temporary reconciliation failure retains historical evidence without another request',
+    has('commands') &&
+      gets() === 1 &&
+      posts() === 1 &&
+      document.body.textContent.includes('Synthetic reconciliation 503'),
+  );
+
+  await reset();
+  await inspect('commands');
+  reconcileCode = 403;
+  detailCodes.commands = 503;
+  nextHold = '/api/commands/' + command.id;
+  await click(button('Read current result'));
+  await settle(() => held);
+  check(
+    'Pending access recheck hides command evidence and summary and blocks retry',
+    !has('commands') &&
+      !inspectButton('commands') &&
+      button('Retry record access')?.disabled &&
+      !!inspectButton('runs'),
+  );
+  check(
+    'Entering refused-action recovery focuses its visible notice',
+    document.activeElement?.classList.contains('notice') &&
+      document.activeElement.textContent.includes(command.id),
+  );
+  await act(async () => release());
+  await tick();
+  check(
+    'Temporary access read failure keeps an explicit retry with opaque ID and no protected title',
+    !has('commands') &&
+      !inspectButton('commands') &&
+      !button('Retry record access')?.disabled &&
+      document.body.textContent.includes(command.id) &&
+      ![...document.querySelectorAll('.desk-issue h3, .desk-inspector h3')].some(
+        (heading) => heading.textContent === command.title,
+      ) &&
+      !inspector().textContent.includes('Protected command detail marker'),
+  );
+  await refresh();
+  check(
+    'Successful list read does not restore an unverified command',
+    !inspectButton('commands') && !has('commands') && !!button('Retry record access'),
+  );
+  const blobs = [];
+  const originalCreate = URL.createObjectURL,
+    originalRevoke = URL.revokeObjectURL,
+    originalClick = HTMLAnchorElement.prototype.click;
+  URL.createObjectURL = (blob) => {
+    blobs.push(blob);
+    return 'blob:synthetic-desk';
+  };
+  URL.revokeObjectURL = () => {};
+  HTMLAnchorElement.prototype.click = function () {};
+  try {
+    await click(button('Export desk'));
+  } finally {
+    URL.createObjectURL = originalCreate;
+    URL.revokeObjectURL = originalRevoke;
+    HTMLAnchorElement.prototype.click = originalClick;
+  }
+  const exported = await blobs[0].text();
+  check(
+    'Desk export excludes unverified command while retaining unrelated run',
+    !exported.includes(command.id) &&
+      !exported.includes(command.title) &&
+      exported.includes(run.id),
+  );
+  detailCodes.commands = 200;
+  await click(button('Retry record access'));
+  check(
+    'Explicit access retry restores the authorized command without replaying reconciliation',
+    has('commands') &&
+      !!inspectButton('commands') &&
+      !button('Retry record access') &&
+      posts() === 1 &&
+      gets() === 3,
+  );
+  check(
+    'Successful explicit record retry focuses the restored inspector',
+    document.activeElement === inspector(),
+  );
+
+  for (const code of [200, 403]) {
+    await reset();
+    await inspect('commands');
+    reconcileCode = 403;
+    detailCodes.commands = code;
+    nextHold = '/api/commands/' + command.id;
+    await click(button('Read current result'));
+    await settle(() => held);
+    inspectButton('runs').focus();
+    const operatorFocus = document.activeElement;
+    await inspect('runs');
+    await act(async () => release());
+    await tick();
+    check(
+      'Late access GET' + code + ' cannot replace or clear a newly selected authorized run',
+      has('runs') &&
+        !has('commands') &&
+        !!button('Open run controls') &&
+        !!button('Retry record access'),
+    );
+    if (code === 200)
+      check(
+        'Late access response does not steal focus from the newly selected run',
+        document.activeElement === operatorFocus,
+      );
+  }
+  await reset();
+  await inspect('commands');
+  reconcileCode = 403;
+  nextHold = '/api/commands/' + command.id;
+  await click(button('Read current result'));
+  await settle(() => held);
+  listCodes.commands = 403;
+  await refresh();
+  await act(async () => release());
+  await tick();
+  check(
+    'Newer commands source denial invalidates a pending access recheck',
+    !has('commands') && !inspectButton('commands'),
+  );
+
+  await reset();
+  await inspect('commands');
+  reconcileCode = 403;
+  records.commands = {
+    ...command,
+    title: 'Fresh command label',
+    status: 'conflict',
+    message: 'Fresh conflicting observation',
+  };
+  await click(button('Read current result'));
+  check(
+    'Authorized recheck rebuilds selected obligation from current record fields',
+    has('commands') &&
+      inspector().textContent.includes('Fresh conflicting observation') &&
+      inspector().querySelector('.badge')?.textContent === 'review' &&
+      !inspector().textContent.includes('Synthetic command'),
+  );
+  const projected = [];
+  URL.createObjectURL = (blob) => {
+    projected.push(blob);
+    return 'blob:synthetic-desk';
+  };
+  URL.revokeObjectURL = () => {};
+  HTMLAnchorElement.prototype.click = function () {};
+  try {
+    await click(button('Export desk'));
+  } finally {
+    URL.createObjectURL = originalCreate;
+    URL.revokeObjectURL = originalRevoke;
+    HTMLAnchorElement.prototype.click = originalClick;
+  }
+  const projection = await projected[0].text();
+  check(
+    'Recovered desk export remains a summary without full command before/proposed evidence',
+    projection.includes('Fresh command label') &&
+      !projection.includes('"before"') &&
+      !projection.includes('"proposed"'),
+  );
+
+  await reset();
+  await inspect('commands');
+  reconcileCode = 403;
+  nextHold = '/api/commands/' + command.id + '/reconcile';
+  await click(button('Read current result'));
+  await settle(() => held);
+  await inspect('runs');
+  await act(async () => release());
+  await tick();
+  check(
+    'Late refused reconciliation cannot replace a newly selected run or start an access check',
+    has('runs') && gets() === 1 && !button('Retry record access'),
+  );
+  await reset();
+  await inspect('commands');
+  reconcileCode = 403;
+  records.commands = {
+    ...command,
+    title: 'Resolved command label',
+    status: 'verified',
+    message: 'Current readback already verified',
+  };
+  await click(button('Read current result'));
+  check(
+    'Access recheck shows a verified record without an obsolete attention badge or retry action',
+    has('commands') &&
+      inspector().textContent.includes('Current readback already verified') &&
+      inspector().textContent.includes('The access check succeeded') &&
+      !inspector().querySelector('.badge') &&
+      !button('Read current result') &&
+      !inspectButton('commands'),
+  );
+  listCodes.commands = 403;
+  await refresh();
+  check(
+    'Later source denial clears a rechecked verified record even without an attention obligation',
+    !has('commands') && !inspector().textContent.includes('Current readback already verified'),
+  );
+}
 (async () => {
   let error;
   try {
     await suite();
+    await reconciliationSuite();
   } catch (cause) {
     error = cause.stack;
   }

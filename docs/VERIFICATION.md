@@ -1,5 +1,13 @@
 # Verification record
 
+## Refused command reconciliation — September 28, 2026
+
+Release 1.0.10 checks saved-record access after Operations desk reconciliation returns 403 or 404. The record is hidden from the desk and its export while this separate GET is pending. A readable result restores current evidence; a denied or missing record is removed. A transient access-check failure retains only an opaque recovery ID and offers Retry record access. The retry sends a GET, never the original mutation or another reconciliation. Other readable records remain available, and delayed responses cannot replace a later selection or restore data after a newer source denial.
+
+This change concerns the handling of previously downloaded evidence. The server already checks current identity and command privileges; it does not revoke files exported earlier. A denied POST alone is not treated as proof of lost read access because origin and CSRF checks can also refuse it.
+
+Production build and 236 Node tests pass. Forty-three actual OperationsDesk browser checks cover denied versus allowed record reads, transient failures, summary exports, explicit GET-only recovery, updated and verified outcomes, late responses, newer source denials and keyboard focus. Desktop and 390px manual checks confirmed that recovery is visible, Tab reaches Retry record access, and Enter restores a verified record with focus in its inspector. A denied retry removed only the command while two unrelated run obligations remained. The phone document measured 390px client and scroll width. All checks used synthetic records with zero native or durable writes.
+
 ## Handover report on narrow screens â€” September 28, 2026
 
 Release 1.0.9 wraps long targets, references and evidence identifiers, stacks responsibility metadata on narrow screens, and keeps follow-up and journal columns readable in named, keyboard-scrollable regions. Desktop column proportions reserve space for state and dates. Print sizing and exported values remain unchanged. The first-run guide explains when to include the full JSON package alongside the shortened printable evidence.

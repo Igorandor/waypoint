@@ -33,7 +33,20 @@ async function source<T>(resource: string): Promise<DeskSource<T> & { accessDeni
   }
 }
 export function OperationsDesk() {
-  const [snapshot, setSnapshot] = useState<DeskSnapshot>();
+  const [cachedSnapshot, setSnapshot] = useState<DeskSnapshot>();
+  const [unverifiedCommands, setUnverifiedCommands] = useState<string[]>([]);
+  const snapshot = cachedSnapshot && {
+    ...cachedSnapshot,
+    commands: unverifiedCommands.length
+      ? {
+          ...cachedSnapshot.commands,
+          data: cachedSnapshot.commands.data?.filter(
+            (record) => !unverifiedCommands.includes(record.id),
+          ),
+          error: 'Some command records are hidden until their access can be checked.',
+        }
+      : cachedSnapshot.commands,
+  };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -45,14 +58,46 @@ export function OperationsDesk() {
   const [command, setCommand] = useState<CommandResult>();
   const sequence = useRef(0);
   const refreshSequence = useRef(0);
-  const selection = useRef<DeskIssue | undefined>(undefined);
+  const selection = useRef<Pick<DeskIssue, 'link' | 'recordId'> | undefined>(undefined);
+  const accessCheck = useRef<{ ticket: number; id: string } | undefined>(undefined);
+  const recoveryNotices = useRef(new Map<string, HTMLElement>());
+  const inspectorElement = useRef<HTMLElement>(null);
+  const focusAfterRead = useRef<{ ticket: number; id?: string } | undefined>(undefined);
+  useEffect(() => {
+    const pending = focusAfterRead.current;
+    if (!pending || pending.ticket !== sequence.current) return;
+    const target = pending.id ? recoveryNotices.current.get(pending.id) : inspectorElement.current;
+    if (target) {
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: 'nearest' });
+      focusAfterRead.current = undefined;
+    }
+  }, [unverifiedCommands, command]);
   function clearSelection() {
     ++sequence.current;
     selection.current = undefined;
+    accessCheck.current = undefined;
+    focusAfterRead.current = undefined;
     setSelected(undefined);
     setRun(undefined);
     setCommand(undefined);
     setBusy(false);
+  }
+  function removeRecord(issue: Pick<DeskIssue, 'link' | 'recordId'>) {
+    ++refreshSequence.current;
+    setLoading(false);
+    clearSelection();
+    setSnapshot((current) => {
+      if (!current) return current;
+      const key = issue.link === 'run' ? 'runs' : 'commands';
+      return {
+        ...current,
+        [key]: {
+          ...current[key],
+          data: current[key].data?.filter((record) => record.id !== issue.recordId),
+        },
+      };
+    });
   }
   async function refresh() {
     const ticket = ++refreshSequence.current;
@@ -64,7 +109,8 @@ export function OperationsDesk() {
         setSnapshot((current) => (current ? { ...current, [name]: result } : current));
         if (
           (selection.current?.link === 'run' && name === 'runs') ||
-          (selection.current?.link === 'command' && name === 'commands')
+          (selection.current?.link === 'command' && name === 'commands') ||
+          (name === 'commands' && accessCheck.current?.ticket === sequence.current)
         )
           clearSelection();
       }
@@ -88,6 +134,8 @@ export function OperationsDesk() {
   }, []);
   async function inspect(issue: DeskIssue) {
     const ticket = ++sequence.current;
+    accessCheck.current = undefined;
+    focusAfterRead.current = undefined;
     selection.current = issue;
     setSelected(issue);
     setRun(undefined);
@@ -103,23 +151,78 @@ export function OperationsDesk() {
       if (ticket !== sequence.current) return;
       setError((cause as Error).message);
       if (cause instanceof RequestError && [403, 404].includes(cause.status)) {
-        ++refreshSequence.current;
-        setLoading(false);
-        clearSelection();
-        setSnapshot((current) => {
-          if (!current) return current;
-          const key = issue.link === 'run' ? 'runs' : 'commands';
-          return {
-            ...current,
-            [key]: {
-              ...current[key],
-              data: current[key].data?.filter((record) => record.id !== issue.recordId),
-            },
-          };
-        });
+        removeRecord(issue);
       }
     } finally {
       if (ticket === sequence.current) setBusy(false);
+    }
+  }
+  async function recheckCommand(commandId: string, refusal = '') {
+    const ticket = ++sequence.current;
+    accessCheck.current = { ticket, id: commandId };
+    focusAfterRead.current = { ticket, id: commandId };
+    ++refreshSequence.current;
+    setLoading(false);
+    setBusy(true);
+    setError(refusal);
+    selection.current = undefined;
+    setSelected(undefined);
+    setRun(undefined);
+    setCommand(undefined);
+    setUnverifiedCommands((ids) => [...new Set([...ids, commandId])]);
+    try {
+      const result = await request<CommandResult>('commands/' + commandId);
+      if (ticket !== sequence.current) return;
+      if (result.id !== commandId)
+        throw new Error('The command access check returned a different record.');
+      const summary: DeskCommand = {
+        id: result.id,
+        title: result.title,
+        target: result.target,
+        status: result.status,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+        message: result.message,
+        operation: result.operation,
+      };
+      setUnverifiedCommands((ids) => ids.filter((id) => id !== commandId));
+      setSnapshot(
+        (current) =>
+          current && {
+            ...current,
+            commands: {
+              ...current.commands,
+              data: [
+                ...(current.commands.data ?? []).filter((record) => record.id !== commandId),
+                summary,
+              ],
+            },
+          },
+      );
+      const readAt = new Date().toISOString();
+      const issue = deskIssues({
+        runs: { data: [], readAt },
+        procedures: { data: [], readAt },
+        commands: { data: [summary], readAt },
+      })[0];
+      focusAfterRead.current = { ticket };
+      setCommand(result);
+      selection.current = { link: 'command', recordId: commandId };
+      if (issue) {
+        setSelected(issue);
+      }
+    } catch (cause) {
+      if (ticket !== sequence.current) return;
+      setError([refusal, (cause as Error).message].filter(Boolean).join(' '));
+      if (cause instanceof RequestError && [403, 404].includes(cause.status)) {
+        setUnverifiedCommands((ids) => ids.filter((id) => id !== commandId));
+        removeRecord({ link: 'command', recordId: commandId });
+      }
+    } finally {
+      if (ticket === sequence.current) {
+        accessCheck.current = undefined;
+        setBusy(false);
+      }
     }
   }
   async function reconcile() {
@@ -134,7 +237,10 @@ export function OperationsDesk() {
       setCommand(result);
       await refresh();
     } catch (cause) {
-      if (ticket === sequence.current) setError((cause as Error).message);
+      if (ticket !== sequence.current) return;
+      if (cause instanceof RequestError && [403, 404].includes(cause.status))
+        await recheckCommand(commandId, (cause as Error).message);
+      else setError((cause as Error).message);
     } finally {
       if (ticket === sequence.current) setBusy(false);
     }
@@ -183,6 +289,32 @@ export function OperationsDesk() {
         </button>
       </PageHeader>
       {error && <ErrorBox error={error} />}
+      {unverifiedCommands.map((id) => (
+        <aside
+          className="notice"
+          key={id}
+          tabIndex={-1}
+          ref={(element) => {
+            if (element) recoveryNotices.current.set(id, element);
+            else recoveryNotices.current.delete(id);
+          }}
+        >
+          <p>
+            This command is hidden from the desk and its export until access can be checked.
+            Retrying reads the saved record; it does not resend the command.
+          </p>
+          <p>
+            <code style={{ overflowWrap: 'anywhere' }}>{id}</code>
+          </p>
+          <button
+            disabled={busy}
+            aria-label={'Retry record access for command ' + id}
+            onClick={() => void recheckCommand(id)}
+          >
+            Retry record access
+          </button>
+        </aside>
+      ))}
       {loading && !snapshot ? (
         <Loading />
       ) : snapshot && counts ? (
@@ -388,19 +520,30 @@ export function OperationsDesk() {
                 </section>
               )}
             </section>
-            <aside className="desk-inspector">
+            <aside className="desk-inspector" ref={inspectorElement} tabIndex={-1}>
               <section className="panel">
-                <h2>{selected ? 'Selected obligation' : 'Review an item'}</h2>
-                {!selected ? (
+                <h2>
+                  {selected ? 'Selected obligation' : command ? 'Command record' : 'Review an item'}
+                </h2>
+                {!selected && !command ? (
                   <p>
                     Select an attention item to read its current authorized record. This does not
                     send a native change.
                   </p>
                 ) : (
                   <>
-                    <Badge>{selected.urgency}</Badge>
-                    <h3>{selected.title}</h3>
-                    <p>{nextDeskAction(selected)}</p>
+                    {selected ? (
+                      <>
+                        <Badge>{selected.urgency}</Badge>
+                        <h3>{selected.title}</h3>
+                        <p>{nextDeskAction(selected)}</p>
+                      </>
+                    ) : (
+                      <>
+                        <h3>{command?.title}</h3>
+                        <p>The access check succeeded. Review the current recorded result below.</p>
+                      </>
+                    )}
                     {busy && !run && !command ? <Loading /> : null}
                     {run && (
                       <>
