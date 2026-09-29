@@ -159,7 +159,7 @@ Verified September 26, 2026 on disposable IRIS Community 2026.2 build 221U. Each
 | test:process             | Explicit demo worker suspend/resume/terminate passes; disappearance checked.                                            |
 | test:runbooks            | Observation, application/task windows, state verification, restoration and ownership isolation pass.                    |
 
-The replacement kept security and API regression contracts. Five tests for the removed Harbor-style presentation helper were retired with that helper. Four new command tests cover selective conflicts, detached defaults, target contracts and complete task payloads. Lower totals than an earlier revision do not indicate that failing security tests were deleted.
+Security and API regression contracts were retained. Five tests for a retired presentation helper were removed with that helper. Four new command tests cover selective conflicts, detached defaults, target contracts and complete task payloads. Lower totals than an earlier revision do not indicate that failing security tests were deleted.
 
 ## Browser verification
 
