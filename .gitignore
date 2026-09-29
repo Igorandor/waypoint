@@ -9,3 +9,5 @@ playwright-report/
 *.log
 .DS_Store
 dist-server/
+!ipm/waypoint-gateway/dist/
+!ipm/waypoint-gateway/dist/**

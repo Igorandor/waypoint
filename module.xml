@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="IRIS" version="26">
+  <Document name="waypoint.ZPM">
+    <Module>
+      <Name>waypoint</Name>
+      <Version>1.1.0</Version>
+      <Description>Run maintenance procedures with recorded evidence and restoration checkpoints.</Description>
+      <Author><Person>Igor Podlewski</Person><CopyrightDate>2026</CopyrightDate><License>MIT</License></Author>
+      <Packaging>module</Packaging>
+      <SystemRequirements Version="&gt;=2026.2" />
+      <SourcesRoot>iris</SourcesRoot>
+      <Resource Name="Waypoint.Rest.CLS" Directory="." />
+      <Resource Name="Waypoint.Telemetry.CLS" Directory="." />
+      <Resource Name="Waypoint.PackageInstaller.CLS" Directory="." />
+      <Invoke Class="Waypoint.PackageInstaller" Method="Validate" Phase="Compile" When="After" CheckStatus="true" />
+      <FileCopy Name="ipm/waypoint-gateway/" Target="${libdir}waypoint/1.1.0/" />
+      <FileCopy Name="docs/WAYPOINT_IPM.md" Target="${libdir}waypoint/1.1.0/IPM.md"/>
+      <WebApplication Name="/api/waypoint" NameSpace="${namespace}" DispatchClass="Waypoint.Rest" AutheEnabled="32" Resource="%Admin_Operate" Enabled="1" />
+      <AfterInstallMessage>Waypoint installed. Node.js 22.12+ is required. Configure a separate run directory and start lib/waypoint/1.1.0/start.mjs as described in docs/WAYPOINT_IPM.md. No accounts or native grants were created.</AfterInstallMessage>
+    </Module>
+  </Document>
+</Export>

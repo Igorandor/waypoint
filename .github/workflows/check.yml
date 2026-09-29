@@ -13,5 +13,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - run: node scripts/build-ipm.mjs
+      - run: npm run test:ipm
+      - run: git diff --exit-code -- ipm/waypoint-gateway
       - run: npm audit --omit=dev
       - run: docker build -t iris-relay-portal .

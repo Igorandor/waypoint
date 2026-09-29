@@ -51,6 +51,10 @@ The interface includes light/dark themes, keyboard controls, Ctrl/Cmd+K navigati
 
 Waypoint uses target selection → server review → one dispatch → native readback. Lost responses become uncertain; read-only reconciliation never resends a write. Process controls require a fresh PID, job number and start timestamp. The REST explorer provides additional known read endpoints.
 
+## Install on an existing IRIS instance
+
+The [IPM installation guide](docs/WAYPOINT_IPM.md) covers packaged installation of the web interface, gateway and native extension, with a separate persistent data directory. Node.js 22.12+ is required.
+
 ## Quick start: complete local installation
 
 Requirements: Docker Engine/Desktop with Compose v2, at least 4 GB available RAM, and approximately 5 GB free disk space. Linux containers are required. On Windows, start Docker Desktop or a Docker daemon in WSL first.
@@ -141,7 +145,7 @@ The gateway remains bound to loopback by default at port 3300; terminate TLS at 
 1. Open Applications or another target area. Select an existing target, inspect its evidence and choose Prepare update.
 2. Add only the fields you want to change. Existing safe values are loaded into those fields. Omit removes a field from the command. Nested objects and arrays use typed controls.
 3. Review command saves the target and masked before/proposed values. Execute once persists dispatch before sending a native write and records the readback outcome. Conflicting touched fields stop the write. The raw gateway rejects writes outside this review workflow.
-4. For creation, choose Create new. Tasks start with a complete on-demand record. Waypoint.DemoTask in %SYS is a harmless test task which records a timestamp in ^WaypointDemo.
+4. For creation, choose Create new. Tasks start with a complete on-demand record. The bundled Docker installation includes Waypoint.DemoTask in %SYS, a test task which records a timestamp in ^WaypointDemo. The IPM package excludes sample tasks; on an existing instance use an approved task class.
 5. Security targets include wallet collections, scoped entries, X.509/TLS and OAuth servers/clients. Secrets are write-only; review masks them.
 6. Processes and devices provides native process details, reviewed controls, device administration and database inspection.
 7. Instance watch collects host capacity or native dashboard observations. A stopped system monitor is labelled stale; CPU ticks remain cumulative counters.

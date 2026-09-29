@@ -1,6 +1,6 @@
 {
   "name": "iris-waypoint",
-  "version": "1.0.19",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -24,7 +24,9 @@
     "test:x509": "tsx scripts/live-x509.ts",
     "test:process": "tsx scripts/live-process.ts",
     "test:runbooks": "tsx scripts/live-runbooks.ts",
-    "test:authorization": "tsx scripts/live-authorization.ts"
+    "test:authorization": "tsx scripts/live-authorization.ts",
+    "build:ipm": "npm run build && node scripts/build-ipm.mjs",
+    "test:ipm": "node --test tests/ipm-package.test.mjs"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",

@@ -1,0 +1,1 @@
+var e={reviewed:`Ready for confirmation`,dispatching:`Request in progress`,verified:`Observed result matches`,acknowledged:`Accepted; limited verification`,uncertain:`Result needs checking`,rejected:`Request rejected`,conflict:`Target changed`,expired:`Review expired`};export{e as t};
