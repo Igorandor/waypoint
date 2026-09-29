@@ -37,4 +37,19 @@ Use a disposable application route or task on an instance where you are authoriz
 
 Closing the browser does not restore the target. Keep the run open until its restoration is verified; if access is lost, an authorized administrator must restore it through an available management interface. A handover report does not release that obligation or undo maintenance performed outside Waypoint.
 
+## Resume an interrupted maintenance window
+
+Return to **Runs** with the same IRIS account and configured instance, then reopen the saved run. Use its current journal before deciding what to do next:
+
+| What you see | Next action | What it establishes |
+| --- | --- | --- |
+| The action result has not been retrieved; actions and exports are paused | Choose **Refresh runs** to retrieve the run detail. Do not create another run for the same maintenance. | The current saved journal, if the detail read succeeds. A refreshed list alone does not establish the outcome. |
+| **Result uncertain** | Choose **Check current state** and inspect the recorded observation. | The target's observed state, without repeating the write. A matching value does not prove who changed it. |
+| **Original state still needs restoration**, with no unresolved action | Finish the checkpoint, or choose **Restore now**, review the target and type its exact identifier. | Restoration is complete only after its result is verified. Early restoration skips the remaining maintenance checkpoint. |
+| The action was saved, but refreshing history failed | Refresh the history. Do not append the note or execute the step again merely to dismiss the warning. | The already returned action remains saved; the history-list error is separate. |
+
+If the target remains uncertain or differs from the expected value, inspect the error and coordinate with whoever else administers it before another explicit action. Losing permission does not release the restoration obligation; an authorized administrator may need to use another management interface.
+
+To rehearse resuming work, use an **enabled disposable application route** or a **disposable task whose scheduling is not suspended**. Record its original state, perform the maintenance transition and wait for its verified result. Close the browser tab at the checkpoint, reopen the portal and select the same saved run. The original value and pending restoration should still be recorded. Restore that value, complete the closing evidence step and export the report. This exercises reopening a saved maintenance window; it does not simulate a lost write response or test gateway crash recovery. An originally disabled route or suspended task may require no maintenance write, so it is a different case.
+
 See [runbook behavior and recovery](RUNBOOKS.md) for exact transitions, persistence and limits. The [run detail](../src/features/runbooks/RunDetail.tsx) and [handover controls](../src/features/runbooks/RunRecordTools.tsx) implement the actions above.
