@@ -4,6 +4,7 @@ import {
   nextStep,
   writeStep,
   type Run,
+  type RunSummary,
   type RunStep,
   type TemplateId,
 } from '../shared/runbook.js';
@@ -53,6 +54,18 @@ export class RunEngine {
   }
   private async read(actor: Actor, id: string) {
     return this.store.read(actor.owner, this.instance, id);
+  }
+  private requireRunCapacity(stored: RunSummary[]) {
+    if (stored.length >= 1000)
+      throw new ApiError(
+        409,
+        'This account has reached 1,000 stored runs, including archived runs. Archiving does not reduce this total. Existing runs remain available; ask the deployment administrator to review retention before creating more.',
+      );
+    if (stored.filter((run) => !run.archivedAt).length >= 100)
+      throw new ApiError(
+        409,
+        'This account has reached 100 unarchived runs. Archive closed runs before creating more. Runs with unresolved restoration must be resolved first.',
+      );
   }
   private applicationKey(target: string) {
     return target.toLowerCase().replace(/\/+$/, '') || '/';
@@ -119,11 +132,7 @@ export class RunEngine {
       throw new ApiError(400, 'Choose a valid task identifier.');
     return this.locked(actor, 'create', async () => {
       const stored = await this.store.list(actor.owner, this.instance);
-      if (stored.filter((run) => !run.archivedAt).length >= 100 || stored.length >= 1000)
-        throw new ApiError(
-          409,
-          'This account has reached 100 unarchived runs or 1000 total records. Archive closed runs before creating more.',
-        );
+      this.requireRunCapacity(stored);
       const time = new Date().toISOString();
       const run: Run = {
         version: 1,
@@ -149,8 +158,7 @@ export class RunEngine {
     const body = procedureBodySchema.parse(version.body);
     return this.locked(actor, 'create', async () => {
       const stored = await this.store.list(actor.owner, this.instance);
-      if (stored.length >= 1000 || stored.filter((run) => !run.archivedAt).length >= 100)
-        throw new ApiError(409, 'This account has reached 1000 stored runs.');
+      this.requireRunCapacity(stored);
       const now = new Date().toISOString();
       const run: Run = {
         version: 1,

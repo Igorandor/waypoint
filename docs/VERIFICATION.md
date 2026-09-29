@@ -1,5 +1,11 @@
 # Verification record
 
+## Run creation capacity messages — September 29, 2026
+
+Release 1.0.19 distinguishes the 100-unarchived-run threshold from the 1,000-total-record threshold for both built-in plans and saved procedures. The total-limit message explains that archiving retains the record and cannot reduce that total. Storage thresholds, existing records, restoration rules and execution behavior are unchanged.
+
+The build and all 257 tests pass. Two regression groups reproduce both incorrect messages, check each threshold and the combined case, verify no save or native call on refusal, and allow creation below both thresholds. Manual checks with the production frontend and real creation guard using an in-memory store confirmed the messages, preserved title and source selection, and scrollable dialog controls at desktop and 390px widths. These checks do not use native IRIS or alter saved runs.
+
 ## Collection context in run comparisons — September 29, 2026
 
 Release 1.0.18 preserves the request limits and collection notices of both successful observations in comparison JSON and in the run comparison. Fields found in only one response are labelled **Only in before** or **Only in after**; they do not prove native creation or deletion. Unrecorded legacy limits remain unknown. A summary warning remains visible when unchanged sources are hidden. Failed or pending observations cannot expose stale collection metadata. Identity matching, raw change enums and comparison traversal limits are unchanged.

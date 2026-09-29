@@ -56,6 +56,8 @@ Log investigation reads a fixed messages/alerts source from a bounded native tai
 
 ## Storage and recovery
 
+New runs are refused when the account and instance already have 100 unarchived runs or 1,000 runs in total. Archiving a closed run frees an unarchived slot; it does not delete the record or reduce the total. At the total limit, existing runs remain available. Ask the deployment administrator to review retention after preserving the full data directory. Do not delete records with unresolved execution or restoration obligations to make room.
+
 The journal directory requires one gateway process. Per-record writes use atomic replacement and fsync. Bounded descriptor reads reject non-regular files and oversized records. Corrupt maintenance records block target writes because a missing restoration obligation cannot safely be assumed.
 
 Back up the full directory with IRIS-supported backups managed separately. Keep stable instance/account identity and preserve existing volume names during upgrades. A gateway restart clears sessions and prepared command bodies; saved procedures, reports and dispatch outcomes remain. Read native state to reconcile an interrupted write before preparing another command.
